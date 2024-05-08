@@ -11,16 +11,16 @@
 
 #include "node.hpp"
 
-template <typename T, typename K, unsigned maxLevel>
-struct ConcurrentSkipList {
+template <typename T, unsigned maxLevel>
+struct ConcurrentRangeLock {
    public:
-    ConcurrentSkipList();
+    ConcurrentRangeLock();
     int generateRandomLevel();
-    std::shared_ptr<Node<T, K>> createNode(T, K, int);
+    std::shared_ptr<Node<T, T>> createNode(T, T, int);
 
-    bool searchElement(T);
-    bool insertElement(T, K);
-    bool deleteElement(T);
+    bool searchRange(T);
+    bool tryLock(T, T);
+    bool releaseLock(T);
     void displayList();
     size_t size();
 
@@ -28,54 +28,73 @@ struct ConcurrentSkipList {
     std::atomic<int> currentLevel{0};
     std::atomic<size_t> elementsCount{0};
 
-    std::shared_ptr<Node<T, K>> head;
-    std::shared_ptr<Node<T, K>> tail;
+    std::shared_ptr<Node<T, T>> head;
+    std::shared_ptr<Node<T, T>> tail;
 
-    int searchHelper(T key, std::vector<std::shared_ptr<Node<T, K>>>& preds,
-                     std::vector<std::shared_ptr<Node<T, K>>>& succs);
+    int searchHelper(T start, T end,
+                     std::vector<std::shared_ptr<Node<T, T>>>& preds,
+                     std::vector<std::shared_ptr<Node<T, T>>>& succs);
 };
 
-template <typename T, typename K, unsigned maxLevel>
-size_t ConcurrentSkipList<T, K, maxLevel>::size() {
+template <typename T, unsigned maxLevel>
+size_t ConcurrentRangeLock<T, maxLevel>::size() {
     return this->elementsCount;
 }
 
-template <typename T, typename K, unsigned maxLevel>
-ConcurrentSkipList<T, K, maxLevel>::ConcurrentSkipList() {
-    head = createNode(std::numeric_limits<T>::min(), 0, maxLevel);
-    tail = createNode(std::numeric_limits<T>::max(), 0, maxLevel);
+template <typename T, unsigned maxLevel>
+ConcurrentRangeLock<T, maxLevel>::ConcurrentRangeLock() {
+    auto min = std::numeric_limits<T>::min();
+    auto max = std::numeric_limits<T>::max();
+
+    head = createNode(min, min, maxLevel);
+    tail = createNode(max, max, maxLevel);
+
     for (int level = 0; level <= static_cast<int>(maxLevel); level++) {
         head->forward.at(level) = tail;
     }
 }
 
-template <typename T, typename K, unsigned maxLevel>
-int ConcurrentSkipList<T, K, maxLevel>::generateRandomLevel() {
+template <typename T, unsigned maxLevel>
+int ConcurrentRangeLock<T, maxLevel>::generateRandomLevel() {
     return rand() % maxLevel;
 }
 
-template <typename T, typename K, unsigned maxLevel>
-std::shared_ptr<Node<T, K>> ConcurrentSkipList<T, K, maxLevel>::createNode(
-    T key, K value, int level) {
-    return std::make_shared<Node<T, K>>(key, value, level);
+template <typename T, unsigned maxLevel>
+std::shared_ptr<Node<T, T>> ConcurrentRangeLock<T, maxLevel>::createNode(
+    T start, T end, int level) {
+    return std::make_shared<Node<T, T>>(start, end, level);
 }
 
-template <typename T, typename K, unsigned maxLevel>
-int ConcurrentSkipList<T, K, maxLevel>::searchHelper(
-    T key, std::vector<std::shared_ptr<Node<T, K>>>& preds,
-    std::vector<std::shared_ptr<Node<T, K>>>& succs) {
+/**
+ * @brief Searches for the position of a given start value within the skip list
+ *        Modify the preds and succs array
+ *
+ * @param start The start value to search for.
+ * @param preds An array of predecessors at each level of the skip list.
+ * @param succs An array of successors at each level of the skip list.
+ *
+ * @return The level at which the start value is found (-1 if not found).
+ */
+template <typename T, unsigned maxLevel>
+int ConcurrentRangeLock<T, maxLevel>::searchHelper( T start, T end, 
+    std::vector<std::shared_ptr<Node<T, T>>>& preds,
+    std::vector<std::shared_ptr<Node<T, T>>>& succs) {
+    
     int levelFound = -1;
-    std::shared_ptr<Node<T, K>> pred = head;
+    std::shared_ptr<Node<T, T>> pred = head;
 
     for (int level = maxLevel; level >= 0; level--) {
-        std::shared_ptr<Node<T, K>> curr = pred->forward.at(level);
-        while (key > curr->getKey()) {
+        std::shared_ptr<Node<T, T>> curr = pred->forward.at(level);
+
+        while (start > curr->getEnd()) {
             pred = curr;
             curr = pred->forward.at(level);
         }
-        if (levelFound == -1 && key == curr->getKey()) {
+
+        if (levelFound == -1 && end >= curr->getStart()) {
             levelFound = level;
         }
+
         preds[level] = pred;
         succs[level] = curr;
     }
@@ -83,27 +102,34 @@ int ConcurrentSkipList<T, K, maxLevel>::searchHelper(
     return levelFound;
 }
 
-template <typename T, typename K, unsigned maxLevel>
-bool ConcurrentSkipList<T, K, maxLevel>::searchElement(T key) {
-    std::vector<std::shared_ptr<Node<T, K>>> preds(maxLevel + 1);
-    std::vector<std::shared_ptr<Node<T, K>>> succs(maxLevel + 1);
+/**
+ * @brief Searches for the range of a given start value
+ *
+ * @param start The start value to search for.
+ *
+ * @return Return if range is found, if node is fully liked and marked
+ */
+template <typename T, unsigned maxLevel>
+bool ConcurrentRangeLock<T, maxLevel>::searchRange(T start) {
+    std::vector<std::shared_ptr<Node<T, T>>> preds(maxLevel + 1);
+    std::vector<std::shared_ptr<Node<T, T>>> succs(maxLevel + 1);
 
-    int levelFound = searchHelper(key, preds, succs);
+    int levelFound = searchHelper(start, preds, succs);
 
     return (levelFound != -1 && succs[levelFound]->fullyLinked &&
             !succs[levelFound]->marked);
 }
 
-template <typename T, typename K, unsigned maxLevel>
-bool ConcurrentSkipList<T, K, maxLevel>::insertElement(T key, K value) {
+template <typename T, unsigned maxLevel>
+bool ConcurrentRangeLock<T, maxLevel>::tryLock(T start, T end) {
     int topLevel = generateRandomLevel();
-    std::vector<std::shared_ptr<Node<T, K>>> preds(maxLevel + 1);
-    std::vector<std::shared_ptr<Node<T, K>>> succs(maxLevel + 1);
+    std::vector<std::shared_ptr<Node<T, T>>> preds(maxLevel + 1);
+    std::vector<std::shared_ptr<Node<T, T>>> succs(maxLevel + 1);
 
     while (true) {
-        int levelFound = searchHelper(key, preds, succs);
+        int levelFound = searchHelper(start, end, preds, succs);
         if (levelFound != -1) {
-            std::shared_ptr<Node<T, K>> nodeFound = succs.at(levelFound);
+            std::shared_ptr<Node<T, T>> nodeFound = succs.at(levelFound);
             if (!nodeFound->marked) {
                 while (!nodeFound->fullyLinked) {
                 };
@@ -114,16 +140,16 @@ bool ConcurrentSkipList<T, K, maxLevel>::insertElement(T key, K value) {
         int highestLocked = -1;
         bool valid = true;
         for (int level = 0; valid && level <= topLevel; level++) {
-            std::shared_ptr<Node<T, K>> pred = preds[level];
-            std::shared_ptr<Node<T, K>> succ = succs[level];
+            std::shared_ptr<Node<T, T>> pred = preds[level];
+            std::shared_ptr<Node<T, T>> succ = succs[level];
             pred->lock();
             highestLocked = level;
             valid = !pred->marked && !succ->marked &&
                     pred->forward.at(level) == succ;
         }
         if (valid) {
-            std::shared_ptr<Node<T, K>> newNode =
-                createNode(key, value, topLevel);
+            std::shared_ptr<Node<T, T>> newNode =
+                createNode(start, end, topLevel);
             for (int level = 0; level <= topLevel; level++) {
                 newNode->forward.at(level) = succs[level];
                 preds[level]->forward.at(level) = newNode;
@@ -147,16 +173,16 @@ bool ConcurrentSkipList<T, K, maxLevel>::insertElement(T key, K value) {
     }
 }
 
-template <typename T, typename K, unsigned maxLevel>
-bool ConcurrentSkipList<T, K, maxLevel>::deleteElement(T key) {
-    std::shared_ptr<Node<T, K>> victim = nullptr;
+template <typename T, unsigned maxLevel>
+bool ConcurrentRangeLock<T, maxLevel>::releaseLock(T start) {
+    std::shared_ptr<Node<T, T>> victim = nullptr;
     bool isMarked = false;
     int topLevel = -1;
-    std::vector<std::shared_ptr<Node<T, K>>> preds(maxLevel + 1);
-    std::vector<std::shared_ptr<Node<T, K>>> succs(maxLevel + 1);
+    std::vector<std::shared_ptr<Node<T, T>>> preds(maxLevel + 1);
+    std::vector<std::shared_ptr<Node<T, T>>> succs(maxLevel + 1);
 
     while (true) {
-        int levelFound = searchHelper(key, preds, succs);
+        int levelFound = searchHelper(start, preds, succs);
         if (levelFound != -1) {
             victim = succs.at(levelFound);
         }
@@ -176,7 +202,7 @@ bool ConcurrentSkipList<T, K, maxLevel>::deleteElement(T key) {
             }
             int highestLocked = -1;
             bool valid = true;
-            std::shared_ptr<Node<T, K>> pred, succ;
+            std::shared_ptr<Node<T, T>> pred, succ;
             for (int level = 0; valid && level <= topLevel; level++) {
                 pred = preds.at(level);
                 pred->lock();
@@ -204,8 +230,8 @@ bool ConcurrentSkipList<T, K, maxLevel>::deleteElement(T key) {
     }
 }
 
-template <typename T, typename K, unsigned maxLevel>
-void ConcurrentSkipList<T, K, maxLevel>::displayList() {
+template <typename T, unsigned maxLevel>
+void ConcurrentRangeLock<T, maxLevel>::displayList() {
     std::cout << "Concurrent Skip-List" << std::endl;
 
     if (head->forward.at(0) == nullptr) {
@@ -218,13 +244,14 @@ void ConcurrentSkipList<T, K, maxLevel>::displayList() {
     std::vector<std::vector<std::string>> builder(
         len, std::vector<std::string>(this->currentLevel + 1));
 
-    std::shared_ptr<Node<T, K>> current = head->forward.at(0);
+    std::shared_ptr<Node<T, T>> current = head->forward.at(0);
 
     for (int i = 0; i < len; ++i) {
         for (int j = 0; j < this->currentLevel + 1; ++j) {
             if (j < static_cast<int>(current->forward.size())) {
                 std::ostringstream oss;
-                oss << std::setw(2) << std::setfill('0') << current->getKey();
+                oss << "[" << std::setw(2) << std::setfill('0') << current->getStart() << ","
+                << std::setw(2) << std::setfill('0') << current->getEnd() << "]";
                 builder.at(i).at(j) = oss.str();
             } else {
                 builder.at(i).at(j) = "--";

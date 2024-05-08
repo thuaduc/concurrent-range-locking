@@ -10,10 +10,10 @@
 constexpr unsigned maxLevel = 16;
 
 // Test case for concurrent insertions
-TEST(ConcurrentSkipList, ConcurrentInsertions) {
+TEST(ConcurrentRangeLock, ConcurrentInsertions) {
     int num_threads = 10;
     int num_elements_per_thread = 100;
-    ConcurrentSkipList<int, int, maxLevel> csl{};
+    ConcurrentRangeLock<int, int, maxLevel> csl{};
 
     auto insertFunc = [&](int thread_id) {
         for (int i = 0; i < num_elements_per_thread; ++i) {
@@ -36,9 +36,9 @@ TEST(ConcurrentSkipList, ConcurrentInsertions) {
 }
 
 // Test case for concurrent deletions
-TEST(ConcurrentSkipList, ConcurrentDeletions) {
+TEST(ConcurrentRangeLock, ConcurrentDeletions) {
     int num_elements = 1000;
-    ConcurrentSkipList<int, int, maxLevel> csl{};
+    ConcurrentRangeLock<int, int, maxLevel> csl{};
 
     for (int i = 0; i < num_elements; ++i) {
         csl.insertElement(i, i);
@@ -64,9 +64,9 @@ TEST(ConcurrentSkipList, ConcurrentDeletions) {
 }
 
 // Test case for concurrent searches
-TEST(ConcurrentSkipList, ConcurrentSearches) {
+TEST(ConcurrentRangeLock, ConcurrentSearches) {
     int num_elements = 100;
-    ConcurrentSkipList<int, int, maxLevel> csl{};
+    ConcurrentRangeLock<int, int, maxLevel> csl{};
 
     for (int i = 0; i < num_elements; ++i) {
         csl.insertElement(i, i);
@@ -88,10 +88,10 @@ TEST(ConcurrentSkipList, ConcurrentSearches) {
 }
 
 // Test case for all operations concurrently
-TEST(ConcurrentSkipList, MixedOperationsConcurrently) {
+TEST(ConcurrentRangeLock, MixedOperationsConcurrently) {
     const int num_threads = 20;
     const int num_operations_per_thread = 50;
-    ConcurrentSkipList<int, int, maxLevel> csl{};
+    ConcurrentRangeLock<int, int, maxLevel> csl{};
 
     auto mixedOpFunc = [&](int thread_id) {
         for (int i = 0; i < num_operations_per_thread; ++i) {
@@ -121,10 +121,10 @@ TEST(ConcurrentSkipList, MixedOperationsConcurrently) {
 }
 
 // Test with high number of threads performing insertions
-TEST(ConcurrentSkipList, HighConcurrencyInsertions) {
+TEST(ConcurrentRangeLock, HighConcurrencyInsertions) {
     const int num_threads = 50;
     const int num_elements_per_thread = 20;
-    ConcurrentSkipList<int, int, maxLevel> csl{};
+    ConcurrentRangeLock<int, int, maxLevel> csl{};
 
     auto insertFunc = [&](int thread_id) {
         for (int i = 0; i < num_elements_per_thread; ++i) {
@@ -146,9 +146,9 @@ TEST(ConcurrentSkipList, HighConcurrencyInsertions) {
 }
 
 // Test case for validating list integrity after concurrent deletions
-TEST(ConcurrentSkipList, ValidateIntegrityAfterConcurrentDeletions) {
+TEST(ConcurrentRangeLock, ValidateIntegrityAfterConcurrentDeletions) {
     const int num_elements = 1000;
-    ConcurrentSkipList<int, int, maxLevel> csl{};
+    ConcurrentRangeLock<int, int, maxLevel> csl{};
 
     for (int i = 0; i < num_elements; ++i) {
         csl.insertElement(i, i);
@@ -172,10 +172,10 @@ TEST(ConcurrentSkipList, ValidateIntegrityAfterConcurrentDeletions) {
 }
 
 // Edge case test: consecutive insertions and deletions same elements
-TEST(ConcurrentSkipList, RapidConsecutiveInsertionsAndDeletions) {
+TEST(ConcurrentRangeLock, RapidConsecutiveInsertionsAndDeletions) {
     const int num_threads = 10;
     const int value = 123;
-    ConcurrentSkipList<int, int, maxLevel> csl{};
+    ConcurrentRangeLock<int, int, maxLevel> csl{};
 
     auto insertDeleteFunc = [&](int) {
         for (int i = 0; i < 100; ++i) {

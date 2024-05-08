@@ -1,6 +1,6 @@
-# Concurrent Skiplist
+# Concurrent Range Locking
 
-A probabilistic skiplist that allows concurrent access and modification. The algorithm was inspired by _The Art of Multiprocessor Programming - Herlihy, M., & Shavit, N. (2008)_.
+A probabilistic skip list that allows concurrent access and modification. The algorithm was inspired by _The Art of Multiprocessor Programming - Herlihy, M., & Shavit, N. (2008)_.
 
 ```
 Level 3: head --->01--------------------------------------------->09--->Null
@@ -29,7 +29,7 @@ make
 
 ```C++
 //                  keytype  valuetype height
-ConcurrentSkipList<uint16_t, uint16_t, 4> csl{};
+ConcurrentRangeLock<uint16_t, uint16_t, 4> csl{};
 ```
 
 - Operations

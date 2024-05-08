@@ -7,13 +7,13 @@
 
 template <typename T, typename K>
 struct Node {
-    Node(T key, K value, int level);
+    Node(T start, K end, int level);
     ~Node() = default;
 
-    T getKey() const;
-    K getValue() const;
-    void setKey(T newKey);
-    void setValue(K newValue);
+    T getStart() const;
+    K getEnd() const;
+    void setStart(T newStart);
+    void setEnd(K newEnd);
 
     std::vector<std::shared_ptr<Node>> forward;
     bool marked;
@@ -23,14 +23,14 @@ struct Node {
     void unlock();
 
    private:
-    T key;
-    K value;
+    T start;
+    K end;
     int level;
     mutable std::recursive_mutex mutex;
 };
 
 template <typename T, typename K>
-Node<T, K>::Node(T key, K value, int level) : key{key}, value{value} {
+Node<T, K>::Node(T start, K end, int level) : start{start}, end{end} {
     forward.resize(level + 1);
 }
 
@@ -45,21 +45,21 @@ void Node<T, K>::unlock() {
 }
 
 template <typename T, typename K>
-T Node<T, K>::getKey() const {
-    return key;
+T Node<T, K>::getStart() const {
+    return start;
 }
 
 template <typename T, typename K>
-K Node<T, K>::getValue() const {
-    return value;
+K Node<T, K>::getEnd() const {
+    return end;
 }
 
 template <typename T, typename K>
-void Node<T, K>::setKey(T newKey) {
-    key = newKey;
+void Node<T, K>::setStart(T newStart) {
+    start = newStart;
 }
 
 template <typename T, typename K>
-void Node<T, K>::setValue(K newValue) {
-    value = newValue;
+void Node<T, K>::setEnd(K newEnd) {
+    end = newEnd;
 }
