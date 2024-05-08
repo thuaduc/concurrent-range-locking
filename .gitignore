@@ -1,0 +1,7 @@
+.vscode
+main
+example
+*.dSYM
+*.o
+*.a
+test
