@@ -17,7 +17,7 @@ Level 0: head ->[00,05]->[08,13]->[14,19]->[21,26]->[28,33]->[36,41]->[42,47]->[
 
 ## Author
 
-The open-source implementation is attributed to Thua-Duc Nguyen <thuaduc.nguyen@tum.de>, produced as part of his bachelor's thesis. The project was under the supervision of Lam-Duy Nguyen <lamduy.nguyen@tum.de>. 
+The open-source implementation belongs to Thua-Duc Nguyen <thuaduc.nguyen@tum.de>, produced as part of his bachelor's thesis. The project was under the advice of Lam-Duy Nguyen lamduy.nguyen@tum.de and under the supervision of Prof. Dr. Viktor Leis <leis@in.tum.de>. 
 
 ## Build
 
