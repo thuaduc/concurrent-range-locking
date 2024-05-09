@@ -38,12 +38,12 @@ make example
 
 ```C++
 //                  type   maxlevel
-ConcurrentRangeLock<uint16_t, 4> crl{};
+ConcurrentRangeLock<uint16_t, 4> rangeLock{};
 ```
 
 - Operations
 
 ```C++
-csl.tryLock(1, 10)
-csl.releaseLock(1, 10);
+rangeLock.tryLock(1, 10)
+rangeLock.releaseLock(1, 10);
 ```
