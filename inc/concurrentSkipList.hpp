@@ -18,9 +18,9 @@ struct ConcurrentRangeLock {
     int generateRandomLevel();
     std::shared_ptr<Node<T, T>> createNode(T, T, int);
 
-    bool searchRange(T);
+    bool searchLock(T, T);
     bool tryLock(T, T);
-    bool releaseLock(T);
+    bool releaseLock(T, T);
     void displayList();
     size_t size();
 
@@ -31,7 +31,11 @@ struct ConcurrentRangeLock {
     std::shared_ptr<Node<T, T>> head;
     std::shared_ptr<Node<T, T>> tail;
 
-    int searchHelper(T start, T end,
+    int findInsert(T start, T end,
+                     std::vector<std::shared_ptr<Node<T, T>>>& preds,
+                     std::vector<std::shared_ptr<Node<T, T>>>& succs);
+
+    int findExact(T start, T end,
                      std::vector<std::shared_ptr<Node<T, T>>>& preds,
                      std::vector<std::shared_ptr<Node<T, T>>>& succs);
 };
@@ -66,17 +70,17 @@ std::shared_ptr<Node<T, T>> ConcurrentRangeLock<T, maxLevel>::createNode(
 }
 
 /**
- * @brief Searches for the position of a given start value within the skip list
+ * @brief Searches for a node position to be inserted in the skip list
  *        Modify the preds and succs array
  *
  * @param start The start value to search for.
  * @param preds An array of predecessors at each level of the skip list.
  * @param succs An array of successors at each level of the skip list.
  *
- * @return The level at which the start value is found (-1 if not found).
+ * @return The level at which the node is found (-1 if not found).
  */
 template <typename T, unsigned maxLevel>
-int ConcurrentRangeLock<T, maxLevel>::searchHelper( T start, T end, 
+int ConcurrentRangeLock<T, maxLevel>::findInsert( T start, T end, 
     std::vector<std::shared_ptr<Node<T, T>>>& preds,
     std::vector<std::shared_ptr<Node<T, T>>>& succs) {
     
@@ -103,6 +107,43 @@ int ConcurrentRangeLock<T, maxLevel>::searchHelper( T start, T end,
 }
 
 /**
+ * @brief Searches for an exact node in the skip list
+ *        Modify the preds and succs array
+ *
+ * @param start The start value to search for.
+ * @param preds An array of predecessors at each level of the skip list.
+ * @param succs An array of successors at each level of the skip list.
+ *
+ * @return The level at which the node is found (-1 if not found).
+ */
+template <typename T, unsigned maxLevel>
+int ConcurrentRangeLock<T, maxLevel>::findExact( T start, T end, 
+    std::vector<std::shared_ptr<Node<T, T>>>& preds,
+    std::vector<std::shared_ptr<Node<T, T>>>& succs) {
+    
+    int levelFound = -1;
+    std::shared_ptr<Node<T, T>> pred = head;
+
+    for (int level = maxLevel; level >= 0; level--) {
+        std::shared_ptr<Node<T, T>> curr = pred->forward.at(level);
+
+        while (start > curr->getEnd()) {
+            pred = curr;
+            curr = pred->forward.at(level);
+        }
+
+        if (levelFound == -1 && start == curr->getStart() && end == curr->getEnd()) {
+            levelFound = level;
+        }
+
+        preds[level] = pred;
+        succs[level] = curr;
+    }
+
+    return levelFound;
+}
+
+/**
  * @brief Searches for the range of a given start value
  *
  * @param start The start value to search for.
@@ -110,11 +151,11 @@ int ConcurrentRangeLock<T, maxLevel>::searchHelper( T start, T end,
  * @return Return if range is found, if node is fully liked and marked
  */
 template <typename T, unsigned maxLevel>
-bool ConcurrentRangeLock<T, maxLevel>::searchRange(T start) {
+bool ConcurrentRangeLock<T, maxLevel>::searchLock(T start, T end) {
     std::vector<std::shared_ptr<Node<T, T>>> preds(maxLevel + 1);
     std::vector<std::shared_ptr<Node<T, T>>> succs(maxLevel + 1);
 
-    int levelFound = searchHelper(start, preds, succs);
+    int levelFound = findExact(start, end, preds, succs);
 
     return (levelFound != -1 && succs[levelFound]->fullyLinked &&
             !succs[levelFound]->marked);
@@ -127,7 +168,7 @@ bool ConcurrentRangeLock<T, maxLevel>::tryLock(T start, T end) {
     std::vector<std::shared_ptr<Node<T, T>>> succs(maxLevel + 1);
 
     while (true) {
-        int levelFound = searchHelper(start, end, preds, succs);
+        int levelFound = findInsert(start, end, preds, succs);
         if (levelFound != -1) {
             std::shared_ptr<Node<T, T>> nodeFound = succs.at(levelFound);
             if (!nodeFound->marked) {
@@ -174,7 +215,7 @@ bool ConcurrentRangeLock<T, maxLevel>::tryLock(T start, T end) {
 }
 
 template <typename T, unsigned maxLevel>
-bool ConcurrentRangeLock<T, maxLevel>::releaseLock(T start) {
+bool ConcurrentRangeLock<T, maxLevel>::releaseLock(T start, T end) {
     std::shared_ptr<Node<T, T>> victim = nullptr;
     bool isMarked = false;
     int topLevel = -1;
@@ -182,7 +223,7 @@ bool ConcurrentRangeLock<T, maxLevel>::releaseLock(T start) {
     std::vector<std::shared_ptr<Node<T, T>>> succs(maxLevel + 1);
 
     while (true) {
-        int levelFound = searchHelper(start, preds, succs);
+        int levelFound = findExact(start, end, preds, succs);
         if (levelFound != -1) {
             victim = succs.at(levelFound);
         }
@@ -232,7 +273,7 @@ bool ConcurrentRangeLock<T, maxLevel>::releaseLock(T start) {
 
 template <typename T, unsigned maxLevel>
 void ConcurrentRangeLock<T, maxLevel>::displayList() {
-    std::cout << "Concurrent Skip-List" << std::endl;
+    std::cout << "Concurrent Range Lock" << std::endl;
 
     if (head->forward.at(0) == nullptr) {
         std::cout << "List is empty" << std::endl;
@@ -254,7 +295,7 @@ void ConcurrentRangeLock<T, maxLevel>::displayList() {
                 << std::setw(2) << std::setfill('0') << current->getEnd() << "]";
                 builder.at(i).at(j) = oss.str();
             } else {
-                builder.at(i).at(j) = "--";
+                builder.at(i).at(j) = "---------";
             }
         }
         current = current->forward.at(0);
@@ -263,12 +304,12 @@ void ConcurrentRangeLock<T, maxLevel>::displayList() {
     for (int i = this->currentLevel; i >= 0; --i) {
         std::cout << "Level " << i << ": head ";
         for (int j = 0; j < len; ++j) {
-            if (builder.at(j).at(i) == "--") {
-                std::cout << "------";
+            if (builder.at(j).at(i) == "---------") {
+                std::cout << "---------";
             } else {
-                std::cout << "--->" << builder.at(j).at(i);
+                std::cout << "->" << builder.at(j).at(i);
             }
         }
-        std::cout << "--->Null" << std::endl;
+        std::cout << "---> tail" << std::endl;
     }
 }
