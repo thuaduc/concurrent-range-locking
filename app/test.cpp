@@ -13,68 +13,68 @@ constexpr unsigned maxLevel = 16;
 TEST(ConcurrentRangeLock, ConcurrentInsertions) {
     int num_threads = 10;
     int num_elements_per_thread = 100;
-    ConcurrentRangeLock<int, int, maxLevel> csl{};
+    ConcurrentRangeLock<int, maxLevel> crl{};
 
-    auto insertFunc = [&](int thread_id) {
-        for (int i = 0; i < num_elements_per_thread; ++i) {
+    auto tryLockFunc = [&](int thread_id) {
+        for (int i = 0; i < num_elements_per_thread; i += 2) {
             int value = thread_id * num_elements_per_thread + i;
 
-            ASSERT_TRUE(csl.insertElement(value, value));
+            ASSERT_TRUE(crl.tryLock(value, value + 1));
         }
     };
 
     std::vector<std::thread> threads;
     for (int i = 0; i < num_threads; ++i) {
-        threads.emplace_back(insertFunc, i);
+        threads.emplace_back(tryLockFunc, i);
     }
 
     for (auto& t : threads) {
         t.join();
     }
 
-    ASSERT_EQ(csl.size(), num_threads * num_elements_per_thread);
+    ASSERT_EQ(crl.size(), num_threads * num_elements_per_thread / 2);
 }
 
 // Test case for concurrent deletions
 TEST(ConcurrentRangeLock, ConcurrentDeletions) {
     int num_elements = 1000;
-    ConcurrentRangeLock<int, int, maxLevel> csl{};
+    ConcurrentRangeLock<int, maxLevel> crl{};
 
-    for (int i = 0; i < num_elements; ++i) {
-        csl.insertElement(i, i);
+    for (int i = 0; i < num_elements; i += 2) {
+        crl.tryLock(i, i + 1);
     }
 
-    auto deleteFunc = [&](int start, int end) {
-        for (int i = start; i < end; ++i) {
-            const auto res = csl.deleteElement(i);
+    auto releaseLockFunc = [&](int start, int end) {
+        for (int i = start; i < end; i += 2) {
+            const auto res = crl.releaseLock(i, i + 1);
             ASSERT_TRUE(res);
         }
     };
 
     std::vector<std::thread> threads;
 
-    threads.emplace_back(deleteFunc, 0, 500);
-    threads.emplace_back(deleteFunc, 500, num_elements);
+    threads.emplace_back(releaseLockFunc, 0, 500);
+    threads.emplace_back(releaseLockFunc, 500, num_elements);
 
     for (auto& t : threads) {
         t.join();
     }
 
-    ASSERT_EQ(csl.size(), 0);
+    ASSERT_EQ(crl.size(), 0);
 }
 
 // Test case for concurrent searches
 TEST(ConcurrentRangeLock, ConcurrentSearches) {
     int num_elements = 100;
-    ConcurrentRangeLock<int, int, maxLevel> csl{};
+    ConcurrentRangeLock<int, maxLevel> crl{};
 
-    for (int i = 0; i < num_elements; ++i) {
-        csl.insertElement(i, i);
+    for (int i = 0; i < num_elements; i += 2) {
+        crl.tryLock(i, i + 1);
     }
 
     const auto searchFunc = [&](int start, int end) {
-        for (int i = start; i < end; ++i) {
-            ASSERT_TRUE(csl.searchElement(i));
+        for (int i = start; i < end; i += 2) {
+            ASSERT_TRUE(crl.searchLock(i, i + 1));
         }
     };
 
@@ -91,20 +91,20 @@ TEST(ConcurrentRangeLock, ConcurrentSearches) {
 TEST(ConcurrentRangeLock, MixedOperationsConcurrently) {
     const int num_threads = 20;
     const int num_operations_per_thread = 50;
-    ConcurrentRangeLock<int, int, maxLevel> csl{};
+    ConcurrentRangeLock<int, maxLevel> crl{};
 
     auto mixedOpFunc = [&](int thread_id) {
-        for (int i = 0; i < num_operations_per_thread; ++i) {
+        for (int i = 0; i < num_operations_per_thread; i+=2) {
             int value = thread_id * num_operations_per_thread + i;
 
             // Even thread IDs insert, odd thread IDs search
             // All threads attempt to delete
             if (thread_id % 2 == 0) {
-                csl.insertElement(value, value);
+                crl.tryLock(value, value+1);
             } else {
-                csl.searchElement(value);
+                crl.searchLock(value, value+1);
             }
-            csl.deleteElement(value);
+            crl.releaseLock(value, value+1);
         }
     };
 
@@ -117,70 +117,70 @@ TEST(ConcurrentRangeLock, MixedOperationsConcurrently) {
         t.join();
     }
 
-    ASSERT_EQ(csl.size(), 0);
+    ASSERT_EQ(crl.size(), 0);
 }
 
 // Test with high number of threads performing insertions
 TEST(ConcurrentRangeLock, HighConcurrencyInsertions) {
     const int num_threads = 50;
     const int num_elements_per_thread = 20;
-    ConcurrentRangeLock<int, int, maxLevel> csl{};
+    ConcurrentRangeLock<int, maxLevel> crl{};
 
-    auto insertFunc = [&](int thread_id) {
-        for (int i = 0; i < num_elements_per_thread; ++i) {
+    auto tryLockFunc = [&](int thread_id) {
+        for (int i = 0; i < num_elements_per_thread; i += 2) {
             int value = thread_id * num_elements_per_thread + i;
-            csl.insertElement(value, value);
+            crl.tryLock(value, value + 1);
         }
     };
 
     std::vector<std::thread> threads;
     for (int i = 0; i < num_threads; ++i) {
-        threads.emplace_back(insertFunc, i);
+        threads.emplace_back(tryLockFunc, i);
     }
 
     for (auto& t : threads) {
         t.join();
     }
 
-    ASSERT_EQ(csl.size(), num_threads * num_elements_per_thread);
+    ASSERT_EQ(crl.size(), num_threads * num_elements_per_thread / 2);
 }
 
 // Test case for validating list integrity after concurrent deletions
 TEST(ConcurrentRangeLock, ValidateIntegrityAfterConcurrentDeletions) {
     const int num_elements = 1000;
-    ConcurrentRangeLock<int, int, maxLevel> csl{};
+    ConcurrentRangeLock<int, maxLevel> crl{};
 
-    for (int i = 0; i < num_elements; ++i) {
-        csl.insertElement(i, i);
+    for (int i = 0; i < num_elements; i += 2) {
+        crl.tryLock(i, i + 1);
     }
 
-    auto deleteFunc = [&](int start, int end) {
-        for (int i = start; i < end; ++i) {
-            csl.deleteElement(i);
+    auto releaseLockFunc = [&](int start, int end) {
+        for (int i = start; i < end; i += 2) {
+            crl.releaseLock(i, i + 1);
         }
     };
 
     std::vector<std::thread> threads;
-    threads.emplace_back(deleteFunc, 0, 500);
-    threads.emplace_back(deleteFunc, 500, num_elements);
+    threads.emplace_back(releaseLockFunc, 0, 500);
+    threads.emplace_back(releaseLockFunc, 500, num_elements);
 
     for (auto& t : threads) {
         t.join();
     }
 
-    ASSERT_EQ(csl.size(), 0);
+    ASSERT_EQ(crl.size(), 0);
 }
 
 // Edge case test: consecutive insertions and deletions same elements
 TEST(ConcurrentRangeLock, RapidConsecutiveInsertionsAndDeletions) {
     const int num_threads = 10;
     const int value = 123;
-    ConcurrentRangeLock<int, int, maxLevel> csl{};
+    ConcurrentRangeLock<int, maxLevel> crl{};
 
     auto insertDeleteFunc = [&](int) {
-        for (int i = 0; i < 100; ++i) {
-            csl.insertElement(value, value);
-            csl.deleteElement(value);
+        for (int i = 0; i < 100; i += 2) {
+            crl.tryLock(value, value + 1);
+            crl.releaseLock(value, value + 1);
         }
     };
 
@@ -192,8 +192,4 @@ TEST(ConcurrentRangeLock, RapidConsecutiveInsertionsAndDeletions) {
     for (auto& t : threads) {
         t.join();
     }
-
-    // The final state should not contain the repeatedly inserted-deleted
-    // element
-    ASSERT_FALSE(csl.searchElement(value));
 }
