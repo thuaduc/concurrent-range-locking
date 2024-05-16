@@ -3,7 +3,7 @@
 #include <iostream>
 #include <thread>
 
-#include "../src/concurrentSkipList.cpp"
+#include "../inc/range_lock.hpp"
 
 void basic() {
     ConcurrentRangeLock<uint16_t, 4> crl{};

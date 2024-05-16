@@ -4,7 +4,7 @@
 #include <thread>
 #include <vector>
 
-#include "concurrentSkipList.hpp"
+#include "range_lock.hpp"
 
 // Predefined maxLevel
 constexpr unsigned maxLevel = 16;
