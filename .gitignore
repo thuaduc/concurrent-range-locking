@@ -1,7 +1,9 @@
 .vscode
-main
-example
+
 *.dSYM
 *.o
 *.a
+
+example
 test
+benchmark

@@ -1,22 +1,25 @@
 SRCDIR = src/
-INCDIR = inc/ 
-GTESTDIR = /usr/local/Cellar/googletest/1.14.0/include
+INCDIR = inc/
+GTESTDIR = /usr/local/lib/googletest/include
 BINDIR = bin/
 APPDIR = app/
-GTEST_DIR = /usr/local/Cellar/googletest/1.14.0/
+GTEST_DIR = /usr/local/lib/googletest
 GTEST_LIB = $(GTEST_DIR)lib/
 
 CXX = clang++ -std=c++20
-CFLAGS = -Wall -Wextra -c -O3
+CFLAGS = -Wall -pedantic -Wextra -c -O3
 LDFLAGS = -L$(GTEST_LIB) -lgtest -lgtest_main -pthread
 
-OBJS = $(addprefix $(BINDIR), concurrentSkipList.o node.o)
+OBJS = $(addprefix $(BINDIR), range_lock.o node.o)
 INCS = $(addprefix -I, $(INCDIR))
 GTEST = $(addprefix -I, $(GTESTDIR))
 
-.PHONY: all clean example test
+.PHONY: all clean example test benchmark
 
 all: test
+
+benchmark: $(BINDIR)csl.a
+	$(CXX) -o $@ $(APPDIR)benchmark.cpp $^
 
 example: $(BINDIR)csl.a
 	$(CXX) -o $@ $(APPDIR)example.cpp $^
