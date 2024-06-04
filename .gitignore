@@ -1,10 +1,13 @@
 .vscode
-main
-example
-example_1
 *.dSYM
 *.o
 *.a
-test
+
+main
+example
+example_1
+unnittest
+benchmark
+
 
 app/build

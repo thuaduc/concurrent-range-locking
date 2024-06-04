@@ -48,17 +48,17 @@ int compare(const std::shared_ptr<LNode>& lock1,
 
 void InsertNode(ListRL* listrl, const std::shared_ptr<LNode>& lock) {
     while (true) {
-        auto prev = &(listrl->head);
-        auto cur = *prev;
+        auto prev = listrl->head;
+        auto cur = prev;
         while (true) {
             // Case prev is logically deleted
-            if (cur && cur->isMarked)
+            if (prev && prev->isMarked)
                 break;  // Traversal must restart as pointer to previous is lost
 
             // Case cur is logically deleted
-            else if (cur && cur->next && cur->next->isMarked) {
+            else if (cur && cur->isMarked) {
                 auto next = cur->next;
-                if (std::atomic_compare_exchange_weak(prev, &cur, next)) {
+                if (std::atomic_compare_exchange_strong(&prev, &cur, next)) {
                     cur = next;
                 } else {
                     break;
@@ -70,8 +70,8 @@ void InsertNode(ListRL* listrl, const std::shared_ptr<LNode>& lock) {
 
                 // Lock succeeds cur
                 if (ret == -1) {  // Continue traversing the list
-                    prev = &(cur->next);
-                    cur = std::atomic_load(prev);
+                    prev = cur->next;
+                    cur = prev;
                 }
 
                 // Lock overlap with cur
@@ -82,7 +82,7 @@ void InsertNode(ListRL* listrl, const std::shared_ptr<LNode>& lock) {
                     //           << std::endl;
 
                     // Wait until cur marks itself as deleted
-                    while (cur && !cur->next->isMarked) {
+                    while (cur && !cur->isMarked) {
                         std::this_thread::yield();
                     }
 
@@ -90,9 +90,9 @@ void InsertNode(ListRL* listrl, const std::shared_ptr<LNode>& lock) {
                 } else if (ret == 1) {
                     lock->next = cur;
                     // Insert lock into the list
-                    if (std::atomic_compare_exchange_weak(prev, &cur, lock))
-                        return;   // Success -> the range is acquired now
-                    cur = *prev;  // Continue traversing the list
+                    if (std::atomic_compare_exchange_strong(&prev, &cur, lock))
+                        return;  // Success -> the range is acquired now
+                    cur = prev;  // Continue traversing the list
                 }
             }
         }
@@ -108,5 +108,5 @@ std::shared_ptr<RangeLock> MutexRangeAcquire(ListRL* listrl, uint64_t start,
 }
 
 void MutexRangeRelease(const std::shared_ptr<RangeLock>& rl) {
-    rl->node->isMarked.store(true);
+    rl->node->isMarked = true;
 }
