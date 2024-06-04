@@ -28,7 +28,7 @@
 
 double thread() {
     ListRL list;
-    int numThreads = 5;
+    int numThreads = 20;
     std::mutex printMutex;
 
     std::vector<std::thread> threads;

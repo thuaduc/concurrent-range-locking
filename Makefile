@@ -1,17 +1,12 @@
 SRCDIR_0 = src/v0/
 SRCDIR_1 = src/v1/
 
-
 BINDIR_0 = bin/v0/
 BINDIR_1 = bin/v1/
 
 APPDIR = app/
 
-GTESTDIR = /usr/local/Cellar/googletest/1.14.0/include
-GTEST_DIR = /usr/local/Cellar/googletest/1.14.0/
-GTEST_LIB = $(GTEST_DIR)lib/
-
-CXX = clang++ -std=c++20 -g
+CXX = gcc -std=c++20 -lstdc++ -g
 CFLAGS = -Wall -Wextra -c -O3 -g
 LDFLAGS = -L$(GTEST_LIB) -lgtest -lgtest_main -pthread
 
@@ -32,9 +27,6 @@ example: $(BINDIR_0)v0.a
 
 example_1: $(BINDIR_1)v1.a
 	$(CXX) -o $@ $(APPDIR)example_v1.cpp $^
-
-test: $(BINDIR_0)v0.a
-	$(CXX) $(GTEST) -o $@ $(APPDIR)test.cpp $^ $(INCS_0) $(LDFLAGS)
 
 
 $(BINDIR_0)v0.a: $(OBJS_0)
