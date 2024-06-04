@@ -1,9 +1,10 @@
 #include <atomic>
 #include <cassert>
+#include <chrono>
 #include <iostream>
 #include <thread>
 
-#include "../inc/range_lock.hpp"
+#include "../src/v0/range_lock.hpp"
 
 void basic() {
     ConcurrentRangeLock<uint16_t, 4> crl{};
@@ -28,35 +29,40 @@ void basic() {
     crl.displayList();
 }
 
-void thread() {
-    ConcurrentRangeLock<uint16_t, 4> crl{};
-    const int numThreads = 20;
+double thread() {
+    ConcurrentRangeLock<uint64_t, 16> crl{};
+    int numThreads = 20;
 
     std::vector<std::thread> threads;
     for (int i = 0; i < numThreads; ++i) {
-        threads.emplace_back([&crl, &i] {
-            for (uint16_t k = 0; k < 8; ++k) {
-                if (crl.tryLock(k * i, k * i + 5) == true) {
-                    std::cout << "Locked " << k * i << "-" << k * i + 5
-                              << std::endl;
-                }
-                std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-                crl.releaseLock(k * i, k * i + 5);
+        threads.emplace_back([&crl, &i, numThreads] {
+            for (uint16_t i = 0; i < numThreads * 4; i += 5) {
+                crl.tryLock(i, i + 10);
+                std::this_thread::sleep_for(std::chrono::milliseconds(500));
+                crl.releaseLock(i, i + 10);
             }
         });
     }
 
-    for (auto &thread : threads) {
+    auto start = std::chrono::steady_clock::now();
+    for (auto& thread : threads) {
         thread.join();
     }
-
-    crl.displayList();
+    auto end = std::chrono::steady_clock::now();
+    std::chrono::duration<double> duration = end - start;
+    return duration.count();
 }
 
 int main() {
-    std::cout << "Basic functionality " << std::endl;
-    basic();
+    // std::cout << "Basic functionality " << std::endl;
+    // basic();
 
     std::cout << "Multiple thread" << std::endl;
-    thread();
+    double total = 0;
+    for (int i = 0; i < 10; i++) {
+        total += thread();
+    }
+    std::cout << "Run time v0 " << total << std::endl;
+
+    return 0;
 }

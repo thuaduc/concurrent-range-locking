@@ -1,7 +1,10 @@
 .vscode
 main
 example
+example_1
 *.dSYM
 *.o
 *.a
 test
+
+app/build

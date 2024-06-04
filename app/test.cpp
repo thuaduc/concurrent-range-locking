@@ -94,17 +94,17 @@ TEST(ConcurrentRangeLock, MixedOperationsConcurrently) {
     ConcurrentRangeLock<int, maxLevel> crl{};
 
     auto mixedOpFunc = [&](int thread_id) {
-        for (int i = 0; i < num_operations_per_thread; i+=2) {
+        for (int i = 0; i < num_operations_per_thread; i += 2) {
             int value = thread_id * num_operations_per_thread + i;
 
             // Even thread IDs insert, odd thread IDs search
             // All threads attempt to delete
             if (thread_id % 2 == 0) {
-                crl.tryLock(value, value+1);
+                crl.tryLock(value, value + 1);
             } else {
-                crl.searchLock(value, value+1);
+                crl.searchLock(value, value + 1);
             }
-            crl.releaseLock(value, value+1);
+            crl.releaseLock(value, value + 1);
         }
     };
 
@@ -193,3 +193,46 @@ TEST(ConcurrentRangeLock, RapidConsecutiveInsertionsAndDeletions) {
         t.join();
     }
 }
+
+// Simple test from leanstore
+// TEST(ConcurrentRangeLock, Simple) {
+//     int NO_THREADS = 50;
+
+//     worker_thread_id = 0;
+
+//     ConcurrentRangeLock<int, maxLevel> crl{};
+
+//     EXPECT_TRUE(crl.tryLock(101, 50));
+//     EXPECT_FALSE(crl.tryLock(100, 2));
+//     EXPECT_TRUE(crl.tryLock(100, 1));
+//     EXPECT_FALSE(crl.tryLock(50, 100));
+//     EXPECT_FALSE(crl.tryLock(50, 200));
+//     EXPECT_FALSE(crl.tryLock(150, 50));
+
+//     EXPECT_FALSE(crl.searchLock(120, 10));
+//     EXPECT_FALSE(crl.searchLock(100, 1));
+//     EXPECT_FALSE(crl.searchLock(90, 20));
+//     EXPECT_TRUE(crl.searchLock(101, 10));
+// }
+
+// TEST(ConcurrentRangeLock, Concurrency) {
+//     ConcurrentRangeLock<int, maxLevel> crl{};
+
+//     std::thread threads[NO_THREADS];
+
+//     for (int idx = 0; idx < NO_THREADS; idx++) {
+//         threads[idx] = std::thread([&, t_id = idx]() {
+//             worker_thread_id = t_id;
+
+//             for (auto i = 0; i < 10000; i++) {
+//                 EXPECT_TRUE(crl.tryLock(t_id * 100 + 1, 100));
+//                 EXPECT_FALSE(crl.searchLock(t_id * 100 + 1, 100));
+//                 crl.unlockRange(t_id * 100 + 1, 100);
+//             }
+//         });
+//     }
+
+//     for (auto& thread : threads) {
+//         thread.join();
+//     }
+// }
