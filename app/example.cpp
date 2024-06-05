@@ -30,7 +30,7 @@ void basic() {
 
 void thread() {
     ConcurrentRangeLock<uint16_t, 4> crl{};
-    const int numThreads = 20;
+    const int numThreads = 5;
 
     std::vector<std::thread> threads;
     for (int i = 0; i < numThreads; ++i) {

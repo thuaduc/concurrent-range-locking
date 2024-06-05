@@ -20,12 +20,12 @@ void threadTask(ConcurrentRangeLock<uint32_t, 20>& crl, uint32_t start, uint32_t
         }
     } 
     
-    {
-        PerfEventBlock peb(perf, (end - start) / 2, {"search_lock "+ std::to_string(numthread)});
-        for (uint32_t i = start; i < end; i += 2) {
-            crl.searchLock(i, i + 1);
-        }
-    } 
+    // {
+    //     PerfEventBlock peb(perf, (end - start) / 2, {"search_lock "+ std::to_string(numthread)});
+    //     for (uint32_t i = start; i < end; i += 2) {
+    //         crl.searchLock(i, i + 1);
+    //     }
+    // } 
     
     {
         PerfEventBlock peb(perf, (end - start) / 2, {"release_lock"+ std::to_string(numthread)});
@@ -39,7 +39,7 @@ void threadTask(ConcurrentRangeLock<uint32_t, 20>& crl, uint32_t start, uint32_t
 void runTestThread(PerfEvent& perf) {
     ConcurrentRangeLock<uint32_t, 20> crl{};
     uint32_t length = 100000;
-    int numThreads = 5;
+    int numThreads = 4;
     std::vector<std::thread> threads;
 
     // Divide the work among 10 threads

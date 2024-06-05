@@ -1,10 +1,9 @@
+-include Makefile.override
+
 SRCDIR = src/
 INCDIR = inc/
-GTESTDIR = /usr/local/lib/googletest/include
 BINDIR = bin/
 APPDIR = app/
-GTEST_DIR = /usr/local/lib/googletest
-GTEST_LIB = $(GTEST_DIR)lib/
 
 CXX = clang++ -std=c++20
 CFLAGS = -Wall -pedantic -Wextra -c -O3
