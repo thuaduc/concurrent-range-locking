@@ -32,12 +32,12 @@ struct ConcurrentRangeLock {
     std::shared_ptr<Node<T, T>> tail;
 
     int findInsert(T start, T end,
-                   std::vector<std::shared_ptr<Node<T, T>>>& preds,
-                   std::vector<std::shared_ptr<Node<T, T>>>& succs);
+                     std::vector<std::shared_ptr<Node<T, T>>>& preds,
+                     std::vector<std::shared_ptr<Node<T, T>>>& succs);
 
     int findExact(T start, T end,
-                  std::vector<std::shared_ptr<Node<T, T>>>& preds,
-                  std::vector<std::shared_ptr<Node<T, T>>>& succs);
+                     std::vector<std::shared_ptr<Node<T, T>>>& preds,
+                     std::vector<std::shared_ptr<Node<T, T>>>& succs);
 };
 
 template <typename T, unsigned maxLevel>
@@ -80,9 +80,10 @@ std::shared_ptr<Node<T, T>> ConcurrentRangeLock<T, maxLevel>::createNode(
  * @return The level at which the node is found (-1 if not found).
  */
 template <typename T, unsigned maxLevel>
-int ConcurrentRangeLock<T, maxLevel>::findInsert(
-    T start, T end, std::vector<std::shared_ptr<Node<T, T>>>& preds,
+int ConcurrentRangeLock<T, maxLevel>::findInsert( T start, T end, 
+    std::vector<std::shared_ptr<Node<T, T>>>& preds,
     std::vector<std::shared_ptr<Node<T, T>>>& succs) {
+    
     int levelFound = -1;
     std::shared_ptr<Node<T, T>> pred = head;
 
@@ -116,9 +117,10 @@ int ConcurrentRangeLock<T, maxLevel>::findInsert(
  * @return The level at which the node is found (-1 if not found).
  */
 template <typename T, unsigned maxLevel>
-int ConcurrentRangeLock<T, maxLevel>::findExact(
-    T start, T end, std::vector<std::shared_ptr<Node<T, T>>>& preds,
+int ConcurrentRangeLock<T, maxLevel>::findExact( T start, T end, 
+    std::vector<std::shared_ptr<Node<T, T>>>& preds,
     std::vector<std::shared_ptr<Node<T, T>>>& succs) {
+    
     int levelFound = -1;
     std::shared_ptr<Node<T, T>> pred = head;
 
@@ -130,8 +132,7 @@ int ConcurrentRangeLock<T, maxLevel>::findExact(
             curr = pred->forward.at(level);
         }
 
-        if (levelFound == -1 && start == curr->getStart() &&
-            end == curr->getEnd()) {
+        if (levelFound == -1 && start == curr->getStart() && end == curr->getEnd()) {
             levelFound = level;
         }
 
@@ -290,9 +291,8 @@ void ConcurrentRangeLock<T, maxLevel>::displayList() {
         for (int j = 0; j < this->currentLevel + 1; ++j) {
             if (j < static_cast<int>(current->forward.size())) {
                 std::ostringstream oss;
-                oss << "[" << std::setw(2) << std::setfill('0')
-                    << current->getStart() << "," << std::setw(2)
-                    << std::setfill('0') << current->getEnd() << "]";
+                oss << "[" << std::setw(2) << std::setfill('0') << current->getStart() << ","
+                << std::setw(2) << std::setfill('0') << current->getEnd() << "]";
                 builder.at(i).at(j) = oss.str();
             } else {
                 builder.at(i).at(j) = "---------";

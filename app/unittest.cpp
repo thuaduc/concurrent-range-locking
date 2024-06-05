@@ -4,7 +4,7 @@
 #include <thread>
 #include <vector>
 
-#include "range_lock.hpp"
+#include "../src/v0/range_lock.hpp"
 
 // Predefined maxLevel
 constexpr unsigned maxLevel = 16;
