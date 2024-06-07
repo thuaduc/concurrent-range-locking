@@ -1,0 +1,4 @@
+GTESTDIR = /usr/local/lib/googletest/include
+GTEST_DIR = /usr/local/lib/googletest
+GTEST_LIB = $(GTEST_DIR)lib/
+CXX = clang++ -std=c++20 -lstdc++ -g -fsanitize=leak -fsanitize=undefined -fsanitize=address -fno-omit-frame-pointer

@@ -4,62 +4,86 @@
 #include <memory>
 #include <mutex>
 #include <vector>
+#include <atomic>
+#include <thread>
 
-template <typename T, typename K>
+template <typename T>
 struct Node {
-    Node(T start, K end, int level);
+    Node(T start, T end, int level);
     ~Node() = default;
 
     T getStart() const;
-    K getEnd() const;
+    T getEnd() const;
     void setStart(T newStart);
-    void setEnd(K newEnd);
+    void setEnd(T newEnd);
+    void info();
 
-    std::vector<std::shared_ptr<Node>> forward;
-    bool marked;
-    bool fullyLinked;
+    std::vector<std::shared_ptr<Node<T>>> next;
+    std::atomic<bool> marked = false;
+    bool fullyLinked = false;
 
     void lock();
     void unlock();
 
+    std::shared_ptr<Node<T>> getNext(int level);
+
+    int topLevel;
+    bool isTail = false;
+
    private:
     T start;
-    K end;
+    T end;
     int level;
     mutable std::recursive_mutex mutex;
 };
 
-template <typename T, typename K>
-Node<T, K>::Node(T start, K end, int level) : start{start}, end{end} {
-    forward.resize(level + 1);
+template <typename T>
+Node<T>::Node(T start, T end, int level) : start{start}, end{end}, fullyLinked{false}, topLevel{level} {
+    next.resize(level + 1);
 }
 
-template <typename T, typename K>
-void Node<T, K>::lock() {
+template <typename T>
+void Node<T>::lock() {
     mutex.lock();
 }
 
-template <typename T, typename K>
-void Node<T, K>::unlock() {
+template <typename T>
+void Node<T>::unlock() {
     mutex.unlock();
 }
 
-template <typename T, typename K>
-T Node<T, K>::getStart() const {
+template <typename T>
+T Node<T>::getStart() const {
     return start;
 }
 
-template <typename T, typename K>
-K Node<T, K>::getEnd() const {
+template <typename T>
+T Node<T>::getEnd() const {
     return end;
 }
 
-template <typename T, typename K>
-void Node<T, K>::setStart(T newStart) {
+template <typename T>
+void Node<T>::setStart(T newStart) {
     start = newStart;
 }
 
-template <typename T, typename K>
-void Node<T, K>::setEnd(K newEnd) {
+template <typename T>
+void Node<T>::setEnd(T newEnd) {
     end = newEnd;
 }
+
+template <typename T>
+std::shared_ptr<Node<T>> Node<T>::getNext(int level) {
+    if (level >= next.size() || level < 0) {
+        std::cerr << "Access out of range!" << std::endl;
+        exit(0);
+    }
+
+    return next.at(level);
+}
+
+template <typename T>
+void Node<T>::info() {
+    std::cout << "Thread " << std::this_thread::get_id() << ". Node start " << start << " end " << end << " next " << next.size() << " marked: " << marked << std::endl;
+}
+
