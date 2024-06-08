@@ -1,7 +1,15 @@
 .vscode
-main
-example
 *.dSYM
 *.o
 *.a
+
+main
+example
+example_1
 test
+unittest
+benchmark
+
+Makefile.override
+
+app/build
