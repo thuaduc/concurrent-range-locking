@@ -3,6 +3,31 @@
 #include <memory>
 #include <mutex>
 #include <cstdlib>
+#include <functional>
+
+class ScopeGuard
+{
+public:
+    explicit ScopeGuard(std::function<void()> onExitScope)
+        : onExitScope_(onExitScope), dismissed_(false) {}
+
+    ~ScopeGuard()
+    {
+        if (!dismissed_)
+        {
+            onExitScope_();
+        }
+    }
+
+    void Dismiss()
+    {
+        dismissed_ = true;
+    }
+
+private:
+    std::function<void()> onExitScope_;
+    bool dismissed_;
+};
 
 template <typename T>
 struct Node {
@@ -14,6 +39,7 @@ struct Node {
     T getEnd() const;
 
     Node **next;
+    Node *removed = nullptr;
     bool marked = false;
     bool fullyLinked = false;
 
@@ -34,6 +60,7 @@ Node<T>::Node(T start, T end, int level) : start{start}, end{end}, topLevel{leve
 
 template <typename T>
 Node<T>::~Node(){
+    // delete next;
 }
 
 template <typename T>

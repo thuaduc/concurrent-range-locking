@@ -19,6 +19,7 @@ class LNode {
 class ListRL {
    public:
     std::shared_ptr<LNode> head;
+    std::atomic<size_t> elementsCount{0};
 
     ListRL() : head(nullptr) {}
 };
@@ -40,7 +41,8 @@ int compare(const std::shared_ptr<LNode>& lock1,
     if (lock1->start >= lock2->end) return 1;
 
     // Check if lock1 is before lock2, no overlap
-    if (lock2->start >= lock1->end) return -1;
+    if (lock2->start >=
+     lock1->end) return -1;
 
     // Lock1 and Lock2 overlap
     return 0;
@@ -90,8 +92,10 @@ void InsertNode(ListRL* listrl, const std::shared_ptr<LNode>& lock) {
                 } else if (ret == 1) {
                     lock->next = cur;
                     // Insert lock into the list
-                    if (std::atomic_compare_exchange_strong(&prev, &cur, lock))
+                    if (std::atomic_compare_exchange_strong(&prev, &cur, lock)) {
+                        listrl->elementsCount.fetch_add(1, std::memory_order_relaxed);                    
                         return;  // Success -> the range is acquired now
+                    }
                     cur = prev;  // Continue traversing the list
                 }
             }
@@ -107,6 +111,7 @@ std::shared_ptr<RangeLock> MutexRangeAcquire(ListRL* listrl, uint64_t start,
     return rl;
 }
 
-void MutexRangeRelease(const std::shared_ptr<RangeLock>& rl) {
+void MutexRangeRelease(ListRL* listrl, const std::shared_ptr<RangeLock>& rl) {
     rl->node->isMarked = true;
+    listrl->elementsCount.fetch_sub(1, std::memory_order_relaxed);
 }
