@@ -1,40 +1,38 @@
--include Makefile.override
-
-SRCDIR_0 = src/v0/
-SRCDIR_1 = src/v1/
-
-BINDIR_0 = bin/v0/
-BINDIR_1 = bin/v1/
-
+SRCDIR = src/
+INCDIR = inc/
+GTESTDIR = /usr/local/lib/googletest/include
+BINDIR = bin/
 APPDIR = app/
+GTEST_DIR = /usr/local/lib/googletest
+GTEST_LIB = $(GTEST_DIR)lib/
 
-CFLAGS = -Wall -pedantic -Wextra -c -O3 -g $(addprefix -I, $(GTESTDIR))
-LDFLAGS = -L$(GTEST_LIB) -lgtest_main -lgtest -pthread
+CXX = clang++ -std=c++20
+CFLAGS = -Wall -pedantic -Wextra -c -O3
+LDFLAGS = -L$(GTEST_LIB) -lgtest -lgtest_main -pthread
 
-OBJS_0 = $(addprefix $(BINDIR_0), range_lock.o node.o)
-OBJS_1 = $(addprefix $(BINDIR_1), range_lock.o)
+OBJS = $(addprefix $(BINDIR), range_lock.o node.o)
+INCS = $(addprefix -I, $(INCDIR))
+GTEST = $(addprefix -I, $(GTESTDIR))
 
-.PHONY: all clean benchmark unittest
+.PHONY: all clean example test benchmark
 
-all: unittest benchmark
+all: test
 
-benchmark: $(BINDIR_0).a $(BINDIR_1).a
-	$(CXX) -o $@ $(APPDIR)benchmark.cpp $^ $(LDFLAGS)
+benchmark: $(BINDIR)csl.a
+	$(CXX) -o $@ $(APPDIR)benchmark.cpp $^
 
-unittest: $(BINDIR_0).a
-	$(CXX) -o $@ $(APPDIR)unittest.cpp $^ $(LDFLAGS)
+example: $(BINDIR)csl.a
+	$(CXX) -o $@ $(APPDIR)example.cpp $^
 
-$(BINDIR_0).a: $(OBJS_0)
+test: $(BINDIR)csl.a
+	$(CXX) $(GTEST) -o $@ $(APPDIR)test.cpp $^ $(INCS) $(LDFLAGS)
+
+$(BINDIR)csl.a: $(OBJS)
 	ar rcs $@ $^
 
-$(BINDIR_0)%.o: $(SRCDIR_0)%.cpp
-	$(CXX) $(CFLAGS) $< -o $@
-
-$(BINDIR_1).a: $(OBJS_1)
-	ar rcs $@ $^
-
-$(BINDIR_1)%.o: $(SRCDIR_1)%.cpp
-	$(CXX) $(CFLAGS) $< -o $@
+$(BINDIR)%.o: $(SRCDIR)%.cpp
+	$(CXX) $(CFLAGS) $(INCS) $< -o $@
 
 clean:
-	rm -rf $(BINDIR_0)* $(BINDIR_1)* benchmark unittest *.dSYM
+	rm -rf $(BINDIR)* example test example.dSYM
+
