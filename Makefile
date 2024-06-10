@@ -8,11 +8,14 @@ BINDIR_1 = bin/v1/
 
 APPDIR = app/
 
-CFLAGS = -Wall -pedantic -Wextra -c -O3 -g $(addprefix -I, $(GTESTDIR))
-LDFLAGS = -L$(GTEST_LIB) -lgtest_main -lgtest -pthread
+
+CFLAGS = -Wall -pedantic -Wextra -c -O3 -g
+LDFLAGS = -L$(GTEST_LIB) -lgtest -lgtest_main -pthread
+
 
 OBJS_0 = $(addprefix $(BINDIR_0), range_lock.o node.o)
 OBJS_1 = $(addprefix $(BINDIR_1), range_lock.o)
+GTEST = $(addprefix -I, $(GTEST_DIR))
 
 .PHONY: all clean benchmark unittest
 
@@ -22,7 +25,7 @@ benchmark: $(BINDIR_0).a $(BINDIR_1).a
 	$(CXX) -o $@ $(APPDIR)benchmark.cpp $^ $(LDFLAGS)
 
 unittest: $(BINDIR_0).a
-	$(CXX) -o $@ $(APPDIR)unittest.cpp $^ $(LDFLAGS)
+	$(CXX) $(GTEST) -o $@ $(APPDIR)unittest.cpp $^ $(LDFLAGS)
 
 $(BINDIR_0).a: $(OBJS_0)
 	ar rcs $@ $^

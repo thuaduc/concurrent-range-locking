@@ -1,12 +1,12 @@
+#include <algorithm>
 #include <atomic>
 #include <cassert>
 #include <chrono>
 #include <iostream>
-#include <thread>
-#include <vector>
 #include <mutex>
 #include <random>
-#include <algorithm>
+#include <thread>
+#include <vector>
 
 #include "../src/v0/range_lock.hpp"
 #include "../src/v1/range_lock.cpp"
@@ -15,65 +15,107 @@
 #define RED "\033[31m"
 #define DEF "\033[0m"
 
-constexpr uint64_t numThreads = 100;
-constexpr uint64_t range = 1000000;
-constexpr uint16_t lockHeight = 8;
-constexpr int workingTime = 1000;
+constexpr uint64_t numThreads = 1;
+constexpr uint64_t range = 100000;
+constexpr uint16_t lockHeight = 5;
+constexpr int workingTime = 100;
 
-double thread_v0_debug()
-{
+double singleThread_v0(std::vector<std::pair<int, int>> &ranges) {
+    ConcurrentRangeLock<uint64_t, lockHeight> crl{};
+
+    auto start = std::chrono::steady_clock::now();
+
+    for (size_t j = 0; j < ranges.size(); ++j) {
+        bool locked = crl.tryLock(ranges[j].first, ranges[j].second);
+    }
+
+    // for (size_t j = 0; j < ranges.size(); ++j) {
+    //     bool locked = crl.releaseLock(ranges[j].first, ranges[j].second);
+    // }
+
+    auto end = std::chrono::steady_clock::now();
+    std::chrono::duration<double> duration = end - start;
+    return duration.count();
+}
+
+double singleThread_v1(std::vector<std::pair<int, int>> &ranges) {
+    ListRL list;
+    std::vector<std::shared_ptr<RangeLock>> lockHandles;
+
+    auto start = std::chrono::steady_clock::now();
+
+    for (size_t j = 0; j < ranges.size(); ++j) {
+        auto rl = MutexRangeAcquire(&list, ranges[j].first, ranges[j].second);
+        lockHandles.push_back(rl);
+    }
+
+    // for (auto rl : lockHandles) {
+    //     MutexRangeRelease(&list, rl);
+    // }
+
+    auto end = std::chrono::steady_clock::now();
+    std::chrono::duration<double> duration = end - start;
+    return duration.count();
+}
+
+double thread_v0_debug() {
     ConcurrentRangeLock<uint64_t, lockHeight> crl{};
     std::mutex printMutex;
 
     std::vector<std::thread> threads;
-    for (int i = 0; i < numThreads; ++i)
-    {
-        threads.emplace_back([&crl, i, &printMutex]
-                             {
+    for (int i = 0; i < numThreads; ++i) {
+        threads.emplace_back([&crl, i, &printMutex] {
             for (uint64_t j = 0; j < range; j += 10) {
                 auto start = j;
                 auto end = j + 5;
 
                 printMutex.lock();
-                std::cout << "thread " << i << " try locking " << start << " " << end << std::endl;
+                std::cout << "thread " << i << " try locking " << start << " "
+                          << end << std::endl;
                 printMutex.unlock();
 
                 bool locked = false;
-                
+
                 locked = crl.tryLock(start, end);
 
                 if (locked) {
                     printMutex.lock();
-                    std::cout << "thread " << i << GREEN << " locked successfully " << DEF << start << " " << end << std::endl;
+                    std::cout << "thread " << i << GREEN
+                              << " locked successfully " << DEF << start << " "
+                              << end << std::endl;
                     printMutex.unlock();
                 } else {
                     printMutex.lock();
-                    std::cout << "thread " << i << " failed to lock " << start << " " << end << std::endl;
+                    std::cout << "thread " << i << " failed to lock " << start
+                              << " " << end << std::endl;
                     printMutex.unlock();
                 }
 
                 if (locked) {
                     printMutex.lock();
-                    std::cout << "thread " << i << " try releasing " << start << " " << end << std::endl;
+                    std::cout << "thread " << i << " try releasing " << start
+                              << " " << end << std::endl;
                     printMutex.unlock();
-                    
+
                     if (crl.releaseLock(start, end)) {
                         printMutex.lock();
-                        std::cout << "thread " << i << RED << " released successfully " << DEF << start << " " << end << std::endl;
+                        std::cout << "thread " << i << RED
+                                  << " released successfully " << DEF << start
+                                  << " " << end << std::endl;
                         printMutex.unlock();
                     } else {
                         printMutex.lock();
-                        std::cout << "thread " << i << " failed to release " << start << " " << end << std::endl;
+                        std::cout << "thread " << i << " failed to release "
+                                  << start << " " << end << std::endl;
                         printMutex.unlock();
                     }
                 }
-
-            } });
+            }
+        });
     }
 
     auto start = std::chrono::steady_clock::now();
-    for (auto &thread : threads)
-    {
+    for (auto &thread : threads) {
         thread.join();
     }
 
@@ -83,20 +125,16 @@ double thread_v0_debug()
     return duration.count();
 }
 
-void test()
-{
+void test() {
     int num_elements = 1000;
     ConcurrentRangeLock<int, 16> crl{};
 
-    for (int i = 0; i < num_elements; i += 2)
-    {
+    for (int i = 0; i < num_elements; i += 2) {
         crl.tryLock(i, i + 1);
     }
 
-    auto releaseLockFunc = [&](int start, int end)
-    {
-        for (int i = start; i < end; i += 2)
-        {
+    auto releaseLockFunc = [&](int start, int end) {
+        for (int i = start; i < end; i += 2) {
             auto res = crl.releaseLock(i, i + 1);
             assert(res == true);
         }
@@ -107,8 +145,7 @@ void test()
     threads.emplace_back(releaseLockFunc, 0, 500);
     threads.emplace_back(releaseLockFunc, 500, num_elements);
 
-    for (auto &t : threads)
-    {
+    for (auto &t : threads) {
         t.join();
     }
 
@@ -119,14 +156,12 @@ void test()
 void simple() {
     ConcurrentRangeLock<int, 8> crl{};
 
-    for (int i = 150; i > 0; i -= 10)
-    {
+    for (int i = 150; i > 0; i -= 10) {
         auto res = crl.tryLock(i - 5, i);
         assert(res == true);
     }
     crl.displayList();
 }
-
 
 void shuffleVector(std::vector<std::pair<int, int>> &vec) {
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
@@ -142,17 +177,12 @@ std::vector<std::pair<int, int>> divideIntoRanges(int x) {
     return ranges;
 }
 
-double thread_v0(std::vector<std::pair<int, int>> &ranges)
-{
+double thread_v0(std::vector<std::pair<int, int>> &ranges) {
     ConcurrentRangeLock<uint64_t, lockHeight> crl{};
-    std::mutex printMutex;
-
     std::vector<std::thread> threads;
 
-    for (int i = 0; i < numThreads; ++i)
-    {
-        threads.emplace_back([&crl, &ranges, i, &printMutex]
-                             {
+    for (int i = 0; i < numThreads; ++i) {
+        threads.emplace_back([&crl, &ranges, i] {
             for (size_t j = i; j < ranges.size(); j += numThreads) {
                 auto start = ranges[j].first;
                 auto end = ranges[j].second;
@@ -161,15 +191,16 @@ double thread_v0(std::vector<std::pair<int, int>> &ranges)
 
                 if (locked) {
                     // Simulate work
-                    std::this_thread::sleep_for(std::chrono::microseconds(workingTime));
+                    std::this_thread::sleep_for(
+                        std::chrono::microseconds(workingTime));
                     crl.releaseLock(start, end);
                 }
-            } });
+            }
+        });
     }
 
     auto start = std::chrono::steady_clock::now();
-    for (auto &thread : threads)
-    {
+    for (auto &thread : threads) {
         thread.join();
     }
     auto end = std::chrono::steady_clock::now();
@@ -178,17 +209,14 @@ double thread_v0(std::vector<std::pair<int, int>> &ranges)
     return duration.count();
 }
 
-double thread_v1(std::vector<std::pair<int, int>> &ranges)
-{
+double thread_v1(std::vector<std::pair<int, int>> &ranges) {
     ListRL list;
     std::mutex printMutex;
 
     std::vector<std::thread> threads;
 
-    for (int i = 0; i < numThreads; ++i)
-    {
-        threads.emplace_back([&list, &ranges, i, &printMutex]
-                             {
+    for (int i = 0; i < numThreads; ++i) {
+        threads.emplace_back([&list, &ranges, i, &printMutex] {
             for (size_t j = i; j < ranges.size(); j += numThreads) {
                 auto start = ranges[j].first;
                 auto end = ranges[j].second;
@@ -196,14 +224,15 @@ double thread_v1(std::vector<std::pair<int, int>> &ranges)
                 auto rl = MutexRangeAcquire(&list, start, end);
 
                 // Simulate work
-                std::this_thread::sleep_for(std::chrono::microseconds(workingTime));
+                std::this_thread::sleep_for(
+                    std::chrono::microseconds(workingTime));
                 MutexRangeRelease(&list, rl);
-            } });
+            }
+        });
     }
 
     auto start = std::chrono::steady_clock::now();
-    for (auto &thread : threads)
-    {
+    for (auto &thread : threads) {
         thread.join();
     }
     auto end = std::chrono::steady_clock::now();
@@ -211,26 +240,23 @@ double thread_v1(std::vector<std::pair<int, int>> &ranges)
     return duration.count();
 }
 
-int main()
-{
-    int runtime = 10;
+int main() {
+    int runtime = 1;
 
     std::cout << "Multiple thread" << std::endl;
     double total = 0;
 
     std::vector<std::pair<int, int>> ranges = divideIntoRanges(range);
 
-    for (int i = 0; i < runtime; i++)
-    {
-        total += thread_v1(ranges);
+    for (int i = 0; i < runtime; i++) {
+        total += singleThread_v1(ranges);
     }
     std::cout << "Run time v1 " << total / runtime << std::endl;
-    
+
     total = 0;
-    
-    for (int i = 0; i < runtime; i++)
-    {
-        total += thread_v0(ranges);
+
+    for (int i = 0; i < runtime; i++) {
+        total += singleThread_v0(ranges);
     }
     std::cout << "Run time v0 " << total / runtime << std::endl;
 
