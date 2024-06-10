@@ -17,12 +17,12 @@ OBJS_0 = $(addprefix $(BINDIR_0), range_lock.o node.o)
 OBJS_1 = $(addprefix $(BINDIR_1), range_lock.o)
 GTEST = $(addprefix -I, $(GTEST_DIR))
 
-.PHONY: all clean benchmark unittest
+.PHONY: all clean benchmark unittest *.o *.a
 
 all: unittest benchmark
 
 benchmark: $(BINDIR_0).a $(BINDIR_1).a
-	$(CXX) -o $@ $(APPDIR)benchmark.cpp $^ $(LDFLAGS)
+	$(CXX) -o $@ $(APPDIR)benchmark.cpp $^
 
 unittest: $(BINDIR_0).a
 	$(CXX) $(GTEST) -o $@ $(APPDIR)unittest.cpp $^ $(LDFLAGS)

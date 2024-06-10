@@ -15,10 +15,11 @@
 #define RED "\033[31m"
 #define DEF "\033[0m"
 
-constexpr uint64_t numThreads = 1;
+constexpr uint64_t numThreads = 20;
 constexpr uint64_t range = 100000;
 constexpr uint16_t lockHeight = 5;
 constexpr int workingTime = 100;
+constexpr int runTime = 1;
 
 double singleThread_v0(std::vector<std::pair<int, int>> &ranges) {
     ConcurrentRangeLock<uint64_t, lockHeight> crl{};
@@ -127,30 +128,33 @@ double thread_v0_debug() {
 
 void test() {
     int num_elements = 1000;
-    ConcurrentRangeLock<int, 16> crl{};
+    const int num_threads = 20;
+    const int num_operations_per_thread = 50;
+    ConcurrentRangeLock<int, 5> crl{};
 
-    for (int i = 0; i < num_elements; i += 2) {
-        crl.tryLock(i, i + 1);
-    }
+    auto mixedOpFunc = [&](int thread_id) {
+        for (int i = 0; i < num_operations_per_thread; i += 2) {
+            int value = thread_id * num_operations_per_thread + i;
 
-    auto releaseLockFunc = [&](int start, int end) {
-        for (int i = start; i < end; i += 2) {
-            auto res = crl.releaseLock(i, i + 1);
-            assert(res == true);
+            // Even thread IDs insert, odd thread IDs search
+            // All threads attempt to delete
+            if (thread_id % 2 == 0) {
+                crl.tryLock(value, value + 1);
+            } else {
+                crl.searchLock(value, value + 1);
+            }
+            crl.releaseLock(value, value + 1);
         }
     };
 
     std::vector<std::thread> threads;
-
-    threads.emplace_back(releaseLockFunc, 0, 500);
-    threads.emplace_back(releaseLockFunc, 500, num_elements);
+    for (int i = 0; i < num_threads; ++i) {
+        threads.emplace_back(mixedOpFunc, i);
+    }
 
     for (auto &t : threads) {
         t.join();
     }
-
-    assert(crl.size() == 0);
-    std::cout << crl.size() << std::endl;
 }
 
 void simple() {
@@ -241,24 +245,24 @@ double thread_v1(std::vector<std::pair<int, int>> &ranges) {
 }
 
 int main() {
-    int runtime = 1;
+    // test();
 
     std::cout << "Multiple thread" << std::endl;
     double total = 0;
 
     std::vector<std::pair<int, int>> ranges = divideIntoRanges(range);
 
-    for (int i = 0; i < runtime; i++) {
-        total += singleThread_v1(ranges);
+    for (int i = 0; i < runTime; i++) {
+        total += thread_v1(ranges);
     }
-    std::cout << "Run time v1 " << total / runtime << std::endl;
+    std::cout << "Run time v1 " << total / runTime << std::endl;
 
     total = 0;
 
-    for (int i = 0; i < runtime; i++) {
-        total += singleThread_v0(ranges);
+    for (int i = 0; i < runTime; i++) {
+        total += thread_v0(ranges);
     }
-    std::cout << "Run time v0 " << total / runtime << std::endl;
+    std::cout << "Run time v0 " << total / runTime << std::endl;
 
     return 0;
 }

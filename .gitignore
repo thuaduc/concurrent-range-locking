@@ -13,3 +13,5 @@ benchmark
 Makefile.override
 
 app/build
+
+*.java

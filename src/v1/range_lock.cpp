@@ -41,8 +41,7 @@ int compare(const std::shared_ptr<LNode>& lock1,
     if (lock1->start >= lock2->end) return 1;
 
     // Check if lock1 is before lock2, no overlap
-    if (lock2->start >=
-     lock1->end) return -1;
+    if (lock2->start >= lock1->end) return -1;
 
     // Lock1 and Lock2 overlap
     return 0;
@@ -78,22 +77,20 @@ void InsertNode(ListRL* listrl, const std::shared_ptr<LNode>& lock) {
 
                 // Lock overlap with cur
                 else if (ret == 0) {
-                    // std::cout << "Thread with id " <<
-                    // std::this_thread::get_id()
-                    //           << " waiting for node to be deleted "
-                    //           << std::endl;
-
                     // Wait until cur marks itself as deleted
                     while (cur && !cur->isMarked) {
                         std::this_thread::yield();
                     }
+                }
 
-                    // Lock preceeds cur or reached the end of list
-                } else if (ret == 1) {
+                // Lock preceeds cur or reached the end of list
+                else if (ret == 1) {
                     lock->next = cur;
                     // Insert lock into the list
-                    if (std::atomic_compare_exchange_strong(&prev, &cur, lock)) {
-                        listrl->elementsCount.fetch_add(1, std::memory_order_relaxed);                    
+                    if (std::atomic_compare_exchange_strong(&prev, &cur,
+                                                            lock)) {
+                        listrl->elementsCount.fetch_add(
+                            1, std::memory_order_relaxed);
                         return;  // Success -> the range is acquired now
                     }
                     cur = prev;  // Continue traversing the list
