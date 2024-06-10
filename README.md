@@ -26,6 +26,7 @@ Prerequisites:
 - [gbenchmark](https://github.com/google/benchmark)
 
 ```sh
+make benchmark
 make test
 make example
 ```
