@@ -4,7 +4,7 @@
 #include <thread>
 #include <vector>
 
-#include "../src/v0/range_lock.hpp"
+#include "../../src/v0/range_lock.hpp"
 
 // Predefined maxLevel
 constexpr unsigned maxLevel = 16;
@@ -89,8 +89,8 @@ TEST(ConcurrentRangeLock, ConcurrentSearches) {
 
 // Test case for all operations concurrently
 TEST(ConcurrentRangeLock, MixedOperationsConcurrently) {
-    const int num_threads = 20;
-    const int num_operations_per_thread = 50;
+    const int num_threads = 50;
+    const int num_operations_per_thread = 1000;
     ConcurrentRangeLock<int, maxLevel> crl{};
 
     auto mixedOpFunc = [&](int thread_id) {

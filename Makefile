@@ -8,8 +8,9 @@ BINDIR_1 = bin/v1/
 
 APPDIR = app/
 
+TESTDIR_0 = test/v0/
+TESTDIR_1 = test/v1/
 
-CFLAGS = -Wall -pedantic -Wextra -c -O3 -g
 LDFLAGS = -L$(GTEST_LIB) -lgtest -lgtest_main -pthread
 
 
@@ -24,8 +25,11 @@ all: unittest benchmark
 benchmark: $(BINDIR_0).a $(BINDIR_1).a
 	$(CXX) -o $@ $(APPDIR)benchmark.cpp $^ $(LDFLAGS)
 
-unittest: $(BINDIR_0).a
-	$(CXX) $(GTEST) -o $@ $(APPDIR)unittest.cpp $^ $(LDFLAGS)
+test: $(BINDIR_0).a $(BINDIR_1).a
+	$(CXX) $(GTEST) -o test_v0 $(TESTDIR_0)/unittest.cpp $^ $(LDFLAGS)
+	$(CXX) $(GTEST) -o test_v1 $(TESTDIR_1)/unittest.cpp $^ $(LDFLAGS)
+	./test_v0
+	./test_v1
 
 $(BINDIR_0).a: $(OBJS_0)
 	ar rcs $@ $^
@@ -40,4 +44,4 @@ $(BINDIR_1)%.o: $(SRCDIR_1)%.cpp
 	$(CXX) $(CFLAGS) $< -o $@
 
 clean:
-	rm -rf $(BINDIR_0)* $(BINDIR_1)* benchmark unittest *.dSYM
+	rm -rf $(BINDIR_0)* $(BINDIR_1)* benchmark test_v0 test_v1 unittest *.dSYM

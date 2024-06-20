@@ -1,117 +1,118 @@
 #include <atomic>
+#include <cstdint>
 #include <iostream>
-#include <memory>
 #include <thread>
+#include <vector>
 
-// Defines a node within the list
-class LNode {
-   public:
+// Node structure for the linked list
+struct LNode {
     uint64_t start;
     uint64_t end;
-    std::shared_ptr<LNode> next;
-    bool isMarked;
+    std::atomic<LNode*> next;
 
-    LNode(uint64_t s, uint64_t e)
-        : start(s), end(e), next(nullptr), isMarked(false) {}
+    LNode(uint64_t s, uint64_t e) : start(s), end(e), next(nullptr) {}
 };
 
-// Defines a list for range locks protecting the same resource
-class ListRL {
-   public:
-    std::shared_ptr<LNode> head;
-    std::atomic<size_t> elementsCount{0};
+// List structure for range locks
+struct ListRL {
+    std::atomic<LNode*> head;
 
     ListRL() : head(nullptr) {}
 };
 
-// Defines a range lock to protect a region within a shared resource
-class RangeLock {
-   public:
-    std::shared_ptr<LNode> node;
+// Range lock structure
+struct RangeLock {
+    LNode* node;
 
-    RangeLock() : node(nullptr) {}
+    RangeLock(LNode* n) : node(n) {}
 };
 
-int compare(const std::shared_ptr<LNode>& lock1,
-            const std::shared_ptr<LNode>& lock2) {
-    // Lock1 is end of the list, no overlap
-    if (!lock1) return 1;
-
-    // Check if lock1 comes after lock2, no overlap
-    if (lock1->start >= lock2->end) return 1;
-
-    // Check if lock1 is before lock2, no overlap
-    if (lock2->start >=
-     lock1->end) return -1;
-
-    // Lock1 and Lock2 overlap
-    return 0;
+// Check if node is marked
+bool isMarked(LNode* node) {
+    return (reinterpret_cast<uintptr_t>(node) & 1) != 0;
 }
 
-void InsertNode(ListRL* listrl, const std::shared_ptr<LNode>& lock) {
+// Unmark the node
+LNode* unmark(LNode* node) {
+    return reinterpret_cast<LNode*>(reinterpret_cast<uintptr_t>(node) & ~1);
+}
+
+// Compare the range of two node
+int compare(LNode* lock1, LNode* lock2) {
+    if (!lock1) return 1;  // lock1 is end of the list, no overlap
+    if (lock1->start >= lock2->end)
+        return 1;  // lock1 comes after lock2, no overlap
+    if (lock2->start >= lock1->end)
+        return -1;  // lock1 is before lock2, no overlap
+    return 0;       // lock1 and lock2 overlap
+}
+
+// Insert node into the list
+bool InsertNode(ListRL* listrl, LNode* lock) {
     while (true) {
-        auto prev = listrl->head;
-        auto cur = prev;
+        std::atomic<LNode*>* prev = &(listrl->head);
+        LNode* cur = prev->load();
         while (true) {
-            // Case prev is logically deleted
-            if (prev && prev->isMarked)
-                break;  // Traversal must restart as pointer to previous is lost
+            if (isMarked(cur)) break;  // prev is logically deleted
 
-            // Case cur is logically deleted
-            else if (cur && cur->isMarked) {
-                auto next = cur->next;
-                if (std::atomic_compare_exchange_strong(&prev, &cur, next)) {
-                    cur = next;
-                } else {
-                    break;
-                }
-
-                // Case cur is currently protecting a range
-            } else {
-                auto ret = compare(cur, lock);
-
-                // Lock succeeds cur
-                if (ret == -1) {  // Continue traversing the list
-                    prev = cur->next;
-                    cur = prev;
-                }
-
-                // Lock overlap with cur
-                else if (ret == 0) {
-                    // std::cout << "Thread with id " <<
-                    // std::this_thread::get_id()
-                    //           << " waiting for node to be deleted "
-                    //           << std::endl;
-
-                    // Wait until cur marks itself as deleted
-                    while (cur && !cur->isMarked) {
-                        std::this_thread::yield();
+            if (cur &&
+                isMarked(cur->next.load())) {  // cur is logically deleted
+                LNode* next = unmark(cur->next.load());
+                std::atomic_compare_exchange_strong(
+                    prev, &cur, next);  // try to remove it from list
+                cur = next;
+            } else {  // cur is currently protecting a range
+                int ret = compare(cur, lock);
+                if (ret == -1) {  // lock succeeds cur
+                    prev = &(cur->next);
+                    cur = prev->load();
+                } else if (ret == 0) {  // lock overlaps with cur
+                    return false;
+                } else if (ret ==
+                           1) {  // lock precedes cur or reached end of list
+                    lock->next.store(cur);
+                    if (std::atomic_compare_exchange_strong(prev, &cur, lock)) {
+                        return true;  // success - the range is acquired now
                     }
-
-                    // Lock preceeds cur or reached the end of list
-                } else if (ret == 1) {
-                    lock->next = cur;
-                    // Insert lock into the list
-                    if (std::atomic_compare_exchange_strong(&prev, &cur, lock)) {
-                        listrl->elementsCount.fetch_add(1, std::memory_order_relaxed);                    
-                        return;  // Success -> the range is acquired now
-                    }
-                    cur = prev;  // Continue traversing the list
+                    cur =
+                        prev->load();  // otherwise continue traversing the list
                 }
             }
         }
     }
 }
 
-std::shared_ptr<RangeLock> MutexRangeAcquire(ListRL* listrl, uint64_t start,
-                                             uint64_t end) {
-    auto rl = std::make_shared<RangeLock>();
-    rl->node = std::make_shared<LNode>(start, end);
-    InsertNode(listrl, rl->node);
-    return rl;
+// Delete node from the list
+void DeleteNode(LNode* lock) {
+    LNode* currentNext = lock->next.load();
+    LNode* markedNext =
+        reinterpret_cast<LNode*>(reinterpret_cast<uintptr_t>(currentNext) | 1);
+    lock->next.store(markedNext);
 }
 
-void MutexRangeRelease(ListRL* listrl, const std::shared_ptr<RangeLock>& rl) {
-    rl->node->isMarked = true;
-    listrl->elementsCount.fetch_sub(1, std::memory_order_relaxed);
+// Acquire a range lock
+RangeLock* MutexRangeAcquire(ListRL* listrl, uint64_t start, uint64_t end) {
+    RangeLock* rl = new RangeLock(new LNode(start, end));
+    if (InsertNode(listrl, rl->node)) {
+        return rl;
+    }
+    delete rl;
+    return nullptr;
+}
+
+// Release a range lock
+void MutexRangeRelease(RangeLock* rl) { DeleteNode(rl->node); }
+
+// Print the range lock
+void printList(ListRL* listrl) {
+    LNode* cur = listrl->head.load();
+    while (cur) {
+        if (isMarked(cur)) {
+            std::cout << "[X] ";
+        } else {
+            std::cout << "[" << cur->start << ", " << cur->end << "] ";
+        }
+        cur = cur->next.load();
+    }
+    std::cout << std::endl;
 }
