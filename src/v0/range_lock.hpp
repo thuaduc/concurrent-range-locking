@@ -6,6 +6,7 @@
 #include <iostream>
 #include <limits>
 #include <memory>
+#include <mutex>
 #include <sstream>
 #include <thread>
 #include <vector>
@@ -27,7 +28,7 @@ struct ConcurrentRangeLock {
     size_t size();
 
    private:
-    unsigned currentLevel{0};
+    unsigned currentLevel{maxLevel};
     std::atomic<size_t> elementsCount{0};
 
     Node<T> *head;
@@ -63,17 +64,10 @@ ConcurrentRangeLock<T, maxLevel>::~ConcurrentRangeLock() {}
 
 template <typename T, unsigned maxLevel>
 unsigned ConcurrentRangeLock<T, maxLevel>::generateRandomLevel() {
-    float randNum = static_cast<float>(rand() / RAND_MAX);
-
-    float threshold = 0.5;  // Probability for level 1
     unsigned level = 1;
-
-    while (randNum > threshold && level < maxLevel) {
-        randNum -= threshold;
-        threshold /= 2;
-        level++;
+    while (rand() % 2 == 0 && level < maxLevel) {
+        ++level;
     }
-
     return level;
 }
 
@@ -157,41 +151,41 @@ bool ConcurrentRangeLock<T, maxLevel>::tryLock(T start, T end) {
         if (levelFound != -1) {
             Node<T> *nodeFound = succs[levelFound];
             if (!nodeFound->marked) {
-                while (!nodeFound->fullyLinked) {
-                    std::this_thread::yield();
-                }
                 return false;
             }
             continue;
         }
 
-        int highestLocked = -1;
         bool valid = true;
-
-        for (int level = 0; valid && level <= topLevel; level++) {
-            Node<T> *pred = preds[level];
-            Node<T> *succ = succs[level];
-            pred->lock();
-            highestLocked = level;
-            valid = !pred->marked && !succ->marked && pred->next[level] == succ;
-        }
-
-        ScopeGuard unlockGuard([&preds, highestLocked]() {
-            for (int level = highestLocked; level >= 0; level--) {
-                preds[level]->unlock();
+        std::vector<Node<T> *> toDelete;
+        ScopeGuard unlockGuard([&preds, &toDelete]() {
+            for (auto it = toDelete.rbegin(); it != toDelete.rend(); ++it) {
+                (*it)->unlock();
             }
         });
+
+        for (int level = 0; valid && (level <= topLevel); ++level) {
+            Node<T> *pred = preds[level];
+            Node<T> *succ = succs[level];
+
+            if (std::find(toDelete.begin(), toDelete.end(), pred) ==
+                toDelete.end()) {
+                pred->lock();
+                toDelete.push_back(pred);
+            }
+
+            valid = !pred->marked && !succ->marked && pred->next[level] == succ;
+        }
 
         if (!valid) continue;
 
         Node<T> *newNode = createNode(start, end, topLevel);
-        for (int level = 0; level <= topLevel; level++) {
+        for (int level = 0; level <= topLevel; ++level) {
             newNode->next[level] = succs[level];
             preds[level]->next[level] = newNode;
         }
         newNode->fullyLinked = true;
 
-        currentLevel = topLevel > currentLevel ? topLevel : currentLevel;
         elementsCount.fetch_add(1, std::memory_order_relaxed);
         return true;
     }
@@ -207,6 +201,13 @@ bool ConcurrentRangeLock<T, maxLevel>::releaseLock(T start, T end) {
     Node<T> *succs[maxLevel + 1];
 
     while (true) {
+        std::vector<Node<T> *> toDelete;
+        ScopeGuard unlockGuard([&preds, &toDelete]() {
+            for (auto it = toDelete.rbegin(); it != toDelete.rend(); ++it) {
+                (*it)->unlock();
+            }
+        });
+
         int levelFound = findExact(start, end, preds, succs);
         if (levelFound != -1) {
             victim = succs[levelFound];
@@ -217,9 +218,14 @@ bool ConcurrentRangeLock<T, maxLevel>::releaseLock(T start, T end) {
              !victim->marked)) {
             if (!isMarked) {
                 topLevel = victim->getTopLevel();
-                victim->lock();
+
+                if (std::find(toDelete.begin(), toDelete.end(), victim) ==
+                    toDelete.end()) {
+                    victim->lock();
+                    toDelete.push_back(victim);
+                }
+
                 if (victim->marked) {
-                    victim->unlock();
                     return false;
                 }
                 victim->marked = true;
@@ -230,26 +236,24 @@ bool ConcurrentRangeLock<T, maxLevel>::releaseLock(T start, T end) {
             bool valid = true;
             Node<T> *pred, *succ;
 
-            for (int level = 0; valid && level <= topLevel; level++) {
+            for (int level = 0; valid && level <= topLevel; ++level) {
                 pred = preds[level];
-                pred->lock();
+                if (std::find(toDelete.begin(), toDelete.end(), pred) ==
+                        toDelete.end() &&
+                    pred != victim) {
+                    pred->lock();
+                    toDelete.push_back(pred);
+                }
                 highestLocked = level;
                 valid = !pred->marked && pred->next[level] == victim;
             }
 
-            ScopeGuard unlockGuard([&preds, highestLocked]() {
-                for (int level = highestLocked; level >= 0; level--) {
-                    preds[level]->unlock();
-                }
-            });
-
             if (!valid) continue;
 
-            for (int level = topLevel; level >= 0; level--) {
+            for (int level = topLevel; level >= 0; --level) {
                 preds[level]->next[level] = victim->next[level];
             }
             victim->unlock();
-
             elementsCount.fetch_sub(1, std::memory_order_relaxed);
 
             return true;
