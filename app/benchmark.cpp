@@ -11,14 +11,10 @@
 #include "../src/v0/range_lock.hpp"
 #include "../src/v1/range_lock.cpp"
 
-#define GREEN "\033[32m"
-#define RED "\033[31m"
-#define DEF "\033[0m"
-
 constexpr uint64_t numThreads = 50;
-constexpr uint64_t range = 100000;
+constexpr uint64_t range = 10000;
 constexpr uint16_t lockHeight = 4;
-constexpr int runtime = 3;
+constexpr int runtime = 10;
 
 std::vector<std::pair<int, int>> createRanges(int x) {
     std::vector<std::pair<int, int>> ranges;
@@ -43,14 +39,14 @@ double thread_v0(std::vector<std::pair<int, int>> &ranges) {
                 auto end = ranges[j].second;
 
                 bool res = crl.tryLock(start, end);
-                while (res != true) {
-                    res = crl.tryLock(start, end);
-                }
+                // while (res != true) {
+                //     res = crl.tryLock(start, end);
+                // }
 
-                std::this_thread::sleep_for(
-                    std::chrono::microseconds(((start + end) * 100) % 10000));
+                // std::this_thread::sleep_for(
+                //     std::chrono::microseconds(((start + end) * 100) % 1000));
 
-                crl.releaseLock(start, end);
+                // crl.releaseLock(start, end);
             }
         });
     }
@@ -61,6 +57,7 @@ double thread_v0(std::vector<std::pair<int, int>> &ranges) {
     }
     auto end = std::chrono::steady_clock::now();
     std::chrono::duration<double> duration = end - start;
+
     return duration.count();
 }
 
@@ -77,14 +74,14 @@ double thread_v1(std::vector<std::pair<int, int>> &ranges) {
                 auto end = ranges[j].second;
 
                 auto rl = MutexRangeAcquire(&list, start, end);
-                while (rl == nullptr) {
-                    rl = MutexRangeAcquire(&list, start, end);
-                }
+                // while (rl == nullptr) {
+                //     rl = MutexRangeAcquire(&list, start, end);
+                // }
 
-                std::this_thread::sleep_for(
-                    std::chrono::microseconds(((start + end) * 100) % 10000));
+                // std::this_thread::sleep_for(
+                //     std::chrono::microseconds(((start + end) * 100) % 1000));
 
-                MutexRangeRelease(rl);
+                // MutexRangeRelease(rl);
             }
         });
     }
@@ -95,6 +92,7 @@ double thread_v1(std::vector<std::pair<int, int>> &ranges) {
     }
     auto end = std::chrono::steady_clock::now();
     std::chrono::duration<double> duration = end - start;
+
     return duration.count();
 }
 

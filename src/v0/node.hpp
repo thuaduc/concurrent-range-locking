@@ -1,32 +1,19 @@
 #pragma once
+#include <cstdlib>
+#include <functional>
 #include <iostream>
 #include <memory>
 #include <mutex>
-#include <cstdlib>
-#include <functional>
 
-class ScopeGuard
-{
-public:
+class ScopeGuard {
+   public:
     explicit ScopeGuard(std::function<void()> onExitScope)
-        : onExitScope_(onExitScope), dismissed_(false) {}
+        : onExitScope_(onExitScope) {}
 
-    ~ScopeGuard()
-    {
-        if (!dismissed_)
-        {
-            onExitScope_();
-        }
-    }
+    ~ScopeGuard() { onExitScope_(); }
 
-    void Dismiss()
-    {
-        dismissed_ = true;
-    }
-
-private:
+   private:
     std::function<void()> onExitScope_;
-    bool dismissed_;
 };
 
 template <typename T>
@@ -39,27 +26,27 @@ struct Node {
     T getEnd() const;
 
     Node **next;
-    Node *removed = nullptr;
     bool marked = false;
     bool fullyLinked = false;
 
     void lock();
     void unlock();
 
-private:
+   private:
     T start;
     T end;
     int topLevel;
-    mutable std::recursive_mutex mutex;
+    std::mutex mutex;
 };
 
 template <typename T>
-Node<T>::Node(T start, T end, int level) : start{start}, end{end}, topLevel{level} {
-    next = new Node<T>*[level + 1];
+Node<T>::Node(T start, T end, int level)
+    : start{start}, end{end}, topLevel{level} {
+    next = new Node<T> *[level + 1];
 }
 
 template <typename T>
-Node<T>::~Node(){
+Node<T>::~Node() {
     // delete next;
 }
 
