@@ -10,6 +10,8 @@ debug
 
 test_v0
 test_v1
+test_v2
+
 
 unittest
 benchmark
