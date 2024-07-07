@@ -13,6 +13,42 @@
 
 #include "node.hpp"
 
+class ScopeGuard {
+   public:
+    explicit ScopeGuard(std::function<void()> onExitScope)
+        : onExitScope_(onExitScope) {}
+
+    ~ScopeGuard() { onExitScope_(); }
+
+   private:
+    std::function<void()> onExitScope_;
+};
+
+template <typename T>
+class NodeLocker {
+   public:
+    void trackAndLock(Node<T> *node) {
+        // Lock the node if it's not already tracked and locked
+        if (std::find(trackedNodes.begin(), trackedNodes.end(), node) ==
+            trackedNodes.end()) {
+            node->lock();
+            trackedNodes.push_back(node);
+        }
+    }
+
+    void unlockAll() {
+        // Unlock all tracked nodes in reverse order
+        for (auto it = trackedNodes.rbegin(); it != trackedNodes.rend(); ++it) {
+            (*it)->unlock();
+        }
+        // Clear the vector after unlocking
+        trackedNodes.clear();
+    }
+
+   private:
+    std::vector<Node<T> *> trackedNodes;
+};
+
 template <typename T, unsigned maxLevel>
 struct ConcurrentRangeLock {
    public:
@@ -33,7 +69,6 @@ struct ConcurrentRangeLock {
 
     Node<T> *head;
     Node<T> *tail;
-    Node<T> *removed = nullptr;
 
     int findInsert(T start, T end, Node<T> **preds, Node<T> **succs);
     int findExact(T start, T end, Node<T> **preds, Node<T> **succs);
@@ -112,7 +147,7 @@ int ConcurrentRangeLock<T, maxLevel>::findExact(T start, T end, Node<T> **preds,
     for (int level = maxLevel; level >= 0; level--) {
         Node<T> *curr = pred->next[level];
 
-        while (start > curr->getEnd()) {
+        while (start >= curr->getEnd()) {
             pred = curr;
             curr = pred->next[level];
         }
@@ -153,31 +188,26 @@ bool ConcurrentRangeLock<T, maxLevel>::tryLock(T start, T end) {
             if (!nodeFound->marked) {
                 return false;
             }
+            // std::this_thread::yield();
             continue;
         }
 
         bool valid = true;
-        std::vector<Node<T> *> toDelete;
-        ScopeGuard unlockGuard([&preds, &toDelete]() {
-            for (auto it = toDelete.rbegin(); it != toDelete.rend(); ++it) {
-                (*it)->unlock();
-            }
-        });
+        NodeLocker<T> nodeLocker;
+        ScopeGuard unlockGuard([&nodeLocker]() { nodeLocker.unlockAll(); });
 
         for (int level = 0; valid && (level <= topLevel); ++level) {
             Node<T> *pred = preds[level];
             Node<T> *succ = succs[level];
 
-            if (std::find(toDelete.begin(), toDelete.end(), pred) ==
-                toDelete.end()) {
-                pred->lock();
-                toDelete.push_back(pred);
-            }
+            nodeLocker.trackAndLock(pred);
 
             valid = !pred->marked && !succ->marked && pred->next[level] == succ;
         }
 
-        if (!valid) continue;
+        if (!valid) {
+            continue;
+        }
 
         Node<T> *newNode = createNode(start, end, topLevel);
         for (int level = 0; level <= topLevel; ++level) {
@@ -190,8 +220,8 @@ bool ConcurrentRangeLock<T, maxLevel>::tryLock(T start, T end) {
         return true;
     }
 }
-
 template <typename T, unsigned maxLevel>
+
 bool ConcurrentRangeLock<T, maxLevel>::releaseLock(T start, T end) {
     Node<T> *victim = nullptr;
     bool isMarked = false;
@@ -201,16 +231,15 @@ bool ConcurrentRangeLock<T, maxLevel>::releaseLock(T start, T end) {
     Node<T> *succs[maxLevel + 1];
 
     while (true) {
-        std::vector<Node<T> *> toDelete;
-        ScopeGuard unlockGuard([&preds, &toDelete]() {
-            for (auto it = toDelete.rbegin(); it != toDelete.rend(); ++it) {
-                (*it)->unlock();
-            }
-        });
+        NodeLocker<T> nodeLocker;
+        ScopeGuard unlockGuard([&nodeLocker]() { nodeLocker.unlockAll(); });
 
         int levelFound = findExact(start, end, preds, succs);
         if (levelFound != -1) {
             victim = succs[levelFound];
+        } else {
+            std::cerr << "Wrong usage of releaseLock" << std::endl;
+            exit(0);
         }
 
         if (isMarked ||
@@ -219,11 +248,7 @@ bool ConcurrentRangeLock<T, maxLevel>::releaseLock(T start, T end) {
             if (!isMarked) {
                 topLevel = victim->getTopLevel();
 
-                if (std::find(toDelete.begin(), toDelete.end(), victim) ==
-                    toDelete.end()) {
-                    victim->lock();
-                    toDelete.push_back(victim);
-                }
+                nodeLocker.trackAndLock(victim);
 
                 if (victim->marked) {
                     return false;
@@ -232,38 +257,36 @@ bool ConcurrentRangeLock<T, maxLevel>::releaseLock(T start, T end) {
                 isMarked = true;
             }
 
-            int highestLocked = -1;
             bool valid = true;
             Node<T> *pred, *succ;
 
             for (int level = 0; valid && level <= topLevel; ++level) {
                 pred = preds[level];
-                if (std::find(toDelete.begin(), toDelete.end(), pred) ==
-                        toDelete.end() &&
-                    pred != victim) {
-                    pred->lock();
-                    toDelete.push_back(pred);
-                }
-                highestLocked = level;
+                nodeLocker.trackAndLock(pred);
                 valid = !pred->marked && pred->next[level] == victim;
             }
 
-            if (!valid) continue;
+            if (!valid) {
+                // std::this_thread::yield();
+                continue;
+            }
 
             for (int level = topLevel; level >= 0; --level) {
                 preds[level]->next[level] = victim->next[level];
             }
-            victim->unlock();
+
             elementsCount.fetch_sub(1, std::memory_order_relaxed);
 
             return true;
         } else {
+            std::cout << isMarked << levelFound << victim->getTopLevel()
+                      << levelFound << victim->marked << std::endl;
             return false;
         }
     }
 }
-
 template <typename T, unsigned maxLevel>
+
 void ConcurrentRangeLock<T, maxLevel>::displayList() {
     std::cout << "Concurrent Range Lock" << std::endl;
 
@@ -304,5 +327,13 @@ void ConcurrentRangeLock<T, maxLevel>::displayList() {
             }
         }
         std::cout << "---> tail" << std::endl;
+    }
+}
+
+template <typename T>
+void trackAndLock(Node<T> *pred, std::vector<Node<T> *> &toUnlock) {
+    if (std::find(toUnlock.begin(), toUnlock.end(), pred) == toUnlock.end()) {
+        pred->lock();
+        toUnlock.push_back(pred);
     }
 }

@@ -1,23 +1,51 @@
 #pragma once
+#include <atomic>
+#include <chrono>
 #include <cstdlib>
 #include <functional>
 #include <iostream>
 #include <memory>
 #include <mutex>
+#include <new>
+#include <thread>
 
-class ScopeGuard {
+class OptimisticMutex {
    public:
-    explicit ScopeGuard(std::function<void()> onExitScope)
-        : onExitScope_(onExitScope) {}
+    OptimisticMutex() : version(0) {}
 
-    ~ScopeGuard() { onExitScope_(); }
+    void lock() {
+        int expectedVersion;
+        while (true) {
+            expectedVersion = version.load(std::memory_order_acquire);
+
+            // Check if the lock is free (even version number)
+            if ((expectedVersion & 1) == 0) {
+                // Try to acquire the lock by incrementing the version number
+                if (version.compare_exchange_strong(
+                        expectedVersion, expectedVersion + 1,
+                        std::memory_order_acq_rel)) {
+                    break;  // Acquired the lock
+                }
+            } else {
+                // Optional: Use a short spin-wait before retrying
+                std::this_thread::yield();
+            }
+        }
+    }
+
+    void unlock() {
+        // Increment the version number to release the lock
+        version.fetch_add(1, std::memory_order_release);
+    }
 
    private:
-    std::function<void()> onExitScope_;
+    std::atomic<int> version;
 };
 
+constexpr uint64_t CacheLineSize = 64;
+
 template <typename T>
-struct Node {
+struct alignas(CacheLineSize) Node {
     Node(T start, T end, int level);
     ~Node();
 
@@ -36,6 +64,7 @@ struct Node {
     T start;
     T end;
     int topLevel;
+    // OptimisticMutex mutex;
     std::mutex mutex;
 };
 

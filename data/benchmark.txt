@@ -1,0 +1,80 @@
+Benchmarking results
+Range: 100000
+Run time v0: 2.51576
+Run time v1: 2.51484
+Range: 200000
+Run time v0: 5.05349
+Run time v1: 5.02587
+Range: 300000
+Run time v0: 7.63482
+Run time v1: 7.54089
+Range: 400000
+Run time v0: 10.0179
+Run time v1: 9.91745
+Range: 500000
+Run time v0: 12.589
+Run time v1: 12.4622
+Benchmarking results
+Range: 100000
+Run time v0: 2.63606
+Run time v1: 2.62667
+Range: 200000
+Run time v0: 5.04994
+Run time v1: 5.01819
+Range: 300000
+Run time v0: 7.50337
+Run time v1: 7.44719
+Range: 400000
+Run time v0: 10.0571
+Run time v1: 10.0176
+Range: 500000
+Run time v0: 12.3732
+Run time v1: 12.3736
+Benchmarking results
+Range: 100000
+Run time v0: 2.57445
+Run time v1: 2.55548
+Range: 200000
+Run time v0: 5.06596
+Run time v1: 5.03527
+Range: 300000
+Run time v0: 7.66599
+Run time v1: 7.61539
+Range: 400000
+Run time v0: 10.0253
+Run time v1: 9.96938
+Range: 500000
+Run time v0: 12.4697
+Run time v1: 12.4636
+Benchmarking results
+Range: 100000
+Run time v0: 2.60647
+Run time v1: 2.56853
+Range: 200000
+Run time v0: 5.0771
+Run time v1: 5.01787
+Range: 300000
+Run time v0: 7.6372
+Run time v1: 7.59138
+Range: 400000
+Run time v0: 9.9665
+Run time v1: 9.84791
+Range: 500000
+Run time v0: 12.6266
+Run time v1: 12.5311
+Benchmarking results
+Range: 100000
+Run time v0: 2.57292
+Run time v1: 2.54893
+Range: 200000
+Run time v0: 5.06363
+Run time v1: 4.99462
+Range: 300000
+Run time v0: 7.45464
+Run time v1: 7.46642
+Range: 400000
+Run time v0: 10.0331
+Run time v1: 9.99321
+Range: 500000
+Run time v0: 12.5981
+Run time v1: 12.4585
