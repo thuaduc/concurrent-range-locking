@@ -15,8 +15,8 @@
 #define RED "\033[31m"
 #define DEF "\033[0m"
 
-constexpr uint64_t numThreads = 100;
-constexpr uint64_t range = 100000;
+constexpr uint64_t numThreads = 20;
+constexpr uint64_t range = 800;
 constexpr uint16_t lockHeight = 5;
 constexpr int workingTime = 0;
 constexpr int runtime = 1;
@@ -75,10 +75,16 @@ void test() {
 }
 
 void test2() {
-    ConcurrentRangeLock<uint64_t, lockHeight> crl{};
-    crl.tryLock(0, 5);
-    crl.tryLock(5, 10);
-    crl.displayList();
+    ConcurrentRangeLock<uint64_t, 5> crl{};
+    std::vector<std::thread> threads;
+
+    threads.emplace_back([&crl] { crl.tryLock(10, 20); });
+
+    threads.emplace_back([&crl] { crl.tryLock(10, 20); });
+
+    for (auto &thread : threads) {
+        thread.join();
+    }
 }
 
 void simple() {
@@ -91,64 +97,57 @@ void simple() {
     crl.displayList();
 }
 
+std::vector<std::pair<int, int>> createRanges(int x) {
+    std::vector<std::pair<int, int>> ranges;
+    for (int i = 0; i < x; i += 10) {
+        ranges.push_back(std::make_pair(i, i + 20));
+    }
+    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    std::shuffle(ranges.begin(), ranges.end(),
+                 std::default_random_engine(seed));
+
+    return ranges;
+}
+
 double thread_v0_debug() {
     ConcurrentRangeLock<uint64_t, lockHeight> crl{};
     std::mutex printMutex;
 
+    auto ranges = createRanges(10000000);
+
     std::vector<std::thread> threads;
+
     for (int i = 0; i < numThreads; ++i) {
-        threads.emplace_back([&crl, i, &printMutex] {
-            for (uint64_t j = 0; j < range; j += 10) {
-                auto start = j;
-                auto end = j + 5;
+        threads.emplace_back([&crl, &printMutex, &ranges, i] {
+            for (size_t j = i; j < ranges.size(); j += numThreads) {
+                auto start = ranges[j].first;
+                auto end = ranges[j].second;
 
                 printMutex.lock();
                 std::cout << "thread " << i << " try locking " << start << " "
                           << end << std::endl;
                 printMutex.unlock();
 
-                bool locked = false;
-
-                if (start == 30) {
-                    std::cout << std::endl;
-                }
-                locked = crl.tryLock(start, end);
-                while (!locked) {
-                    locked = crl.tryLock(start, end, i);
+                bool res = crl.tryLock(start, end);
+                while (res != true) {
+                    res = crl.tryLock(start, end);
                 }
 
-                if (locked) {
-                    printMutex.lock();
-                    std::cout << "thread " << i << GREEN
-                              << " locked successfully " << DEF << start << " "
-                              << end << std::endl;
-                    printMutex.unlock();
-                } else {
-                    printMutex.lock();
-                    std::cout << "thread " << i << " failed to lock " << start
-                              << " " << end << std::endl;
-                    printMutex.unlock();
-                }
+                printMutex.lock();
+                std::cout << "thread " << i << GREEN << " locked successfully "
+                          << DEF << start << " " << end << std::endl;
+                std::cout << "thread " << i << " try releasing " << start << " "
+                          << end << std::endl;
+                printMutex.unlock();
 
-                if (locked) {
-                    printMutex.lock();
-                    std::cout << "thread " << i << " try releasing " << start
-                              << " " << end << std::endl;
-                    printMutex.unlock();
+                std::this_thread::sleep_for(
+                    std::chrono::microseconds(((start + end) * 1000) % 10000));
 
-                    if (crl.releaseLock(start, end)) {
-                        printMutex.lock();
-                        std::cout << "thread " << i << RED
-                                  << " released successfully " << DEF << start
-                                  << " " << end << std::endl;
-                        printMutex.unlock();
-                    } else {
-                        printMutex.lock();
-                        std::cout << "thread " << i << " failed to release "
-                                  << start << " " << end << std::endl;
-                        printMutex.unlock();
-                    }
-                }
+                auto y = crl.releaseLock(start, end);
+
+                std::cout << "thread " << i << RED << " released "
+                          << (y ? "successfully" : "failed") << " " << DEF
+                          << start << " " << end << std::endl;
             }
         });
     }

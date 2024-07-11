@@ -132,7 +132,7 @@ retry:
                     curr = pred->next[level]->getReference();
                     succ = curr->next[level]->get(marked);
                 }
-                if (end > curr->getEnd()) {
+                if (start >= curr->getEnd()) {
                     pred = curr;
                     curr = succ;
                 } else {
@@ -204,8 +204,8 @@ bool ConcurrentRangeLock<T, maxLevel>::releaseLock(T start, T end) {
     while (true) {
         bool found = findExact(start, end, preds, succs);
         if (!found) {
-            std::cerr << "Range not founded. Wrong ussage of releaseLock"
-                      << std::endl;
+            std::cerr << "Range not found. Wrong ussage of releaseLock. "
+                      << start << " " << end << std::endl;
             return false;
         } else {
             Node<T>* nodeToRemove = succs[bottomLevel];
@@ -226,7 +226,7 @@ bool ConcurrentRangeLock<T, maxLevel>::releaseLock(T start, T end) {
                     succ, succ, false, true);
                 succ = succs[bottomLevel]->next[bottomLevel]->get(marked);
                 if (iMarkedIt) {
-                    // findExact(start, end, preds, succs);
+                    findExact(start, end, preds, succs);
 
                     elementsCount.fetch_sub(1, std::memory_order_relaxed);
                     return true;

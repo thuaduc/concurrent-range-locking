@@ -23,7 +23,7 @@ OBJS_2 = $(addprefix $(BINDIR_2), range_lock.o node.o atomic_reference.o)
 
 GTEST = $(addprefix -I, $(GTEST_DIR))
 
-.PHONY: all clean benchmark test debug v2
+.PHONY: all clean benchmark test debug v2 database
 
 all: unittest benchmark
 
@@ -35,6 +35,9 @@ benchmark: $(BINDIR_0).a $(BINDIR_1).a $(BINDIR_2).a
 
 debug: $(BINDIR_0).a $(BINDIR_1).a $(BINDIR_2).a
 	$(CXX) -o $@ $(APPDIR)debug.cpp $^
+
+database:  $(BINDIR_0).a $(BINDIR_1).a
+	$(CXX) -o $@ $(APPDIR)database.cpp $^
 
 test2: $(BINDIR_2).a
 	$(CXX) $(GTEST) -o test_v2 $(TESTDIR_2)/unittest.cpp $^ $(LDFLAGS)
@@ -67,4 +70,4 @@ $(BINDIR_2)%.o: $(SRCDIR_2)%.cpp
 	$(CXX) $(CFLAGS) $< -o $@
 
 clean:
-	rm -rf $(BINDIR_0)* $(BINDIR_1)* $(BINDIR_2)* benchmark v2 debug test_v0 test_v1  unittest *.dSYM
+	rm -rf $(BINDIR_0)* $(BINDIR_1)* $(BINDIR_2)* benchmark v2 debug test_v0 test_v1 test_v2 v2 debug *.dSYM database
