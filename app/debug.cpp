@@ -1,7 +1,6 @@
 #include <algorithm>
 #include <atomic>
 #include <cassert>
-#include <chrono>
 #include <iostream>
 #include <mutex>
 #include <random>
@@ -56,8 +55,8 @@ double singleThread_v1(std::vector<std::pair<int, int>> &ranges) {
 
     // printList(&list);
 
-    for (auto rl : lockHandles) {
-        MutexRangeRelease(rl);
+    for (auto rl: lockHandles) {
+        MutexRangeRelease(&list,rl);
     }
 
     auto end = std::chrono::steady_clock::now();
@@ -82,7 +81,7 @@ void test2() {
 
     threads.emplace_back([&crl] { crl.tryLock(10, 20); });
 
-    for (auto &thread : threads) {
+    for (auto &thread: threads) {
         thread.join();
     }
 }
@@ -141,7 +140,7 @@ double thread_v0_debug() {
                 printMutex.unlock();
 
                 std::this_thread::sleep_for(
-                    std::chrono::microseconds(((start + end) * 1000) % 10000));
+                        std::chrono::microseconds(((start + end) * 1000) % 10000));
 
                 auto y = crl.releaseLock(start, end);
 
@@ -153,7 +152,7 @@ double thread_v0_debug() {
     }
 
     auto start = std::chrono::steady_clock::now();
-    for (auto &thread : threads) {
+    for (auto &thread: threads) {
         thread.join();
     }
 

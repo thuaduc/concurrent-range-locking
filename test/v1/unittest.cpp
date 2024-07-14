@@ -41,7 +41,7 @@ TEST(ConcurrentRangeLock, ConcurrentDeletions) {
 
     auto releaseLockFunc = [&](int start, int end) {
         for (int i = start; i < end; i += 2) {
-            MutexRangeRelease(locks[i / 2]);
+            MutexRangeRelease(&myList,locks[i / 2]);
         }
     };
 
@@ -70,7 +70,7 @@ TEST(ConcurrentRangeLock, MixedOperationsConcurrently) {
                 ASSERT_NE(MutexRangeAcquire(&myList, value, value + 1),
                           nullptr);
             }
-            MutexRangeRelease(new RangeLock(new LNode(value, value + 1)));
+            MutexRangeRelease(&myList,new RangeLock(new LNode(value, value + 1)));
         }
     };
 
@@ -119,7 +119,7 @@ TEST(ConcurrentRangeLock, ValidateIntegrityAfterConcurrentDeletions) {
 
     auto releaseLockFunc = [&](int start, int end) {
         for (int i = start; i < end; i += 2) {
-            MutexRangeRelease(locks[i / 2]);
+            MutexRangeRelease(&myList, locks[i / 2]);
         }
     };
 

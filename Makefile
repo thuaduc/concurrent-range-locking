@@ -36,17 +36,17 @@ benchmark: $(BINDIR_0).a $(BINDIR_1).a $(BINDIR_2).a
 debug: $(BINDIR_0).a $(BINDIR_1).a $(BINDIR_2).a
 	$(CXX) -o $@ $(APPDIR)debug.cpp $^
 
-database:  $(BINDIR_0).a $(BINDIR_1).a
+database:  $(BINDIR_0).a $(BINDIR_1).a $(BINDIR_2).a
 	$(CXX) -o $@ $(APPDIR)database.cpp $^
 
 test2: $(BINDIR_2).a
-	$(CXX) $(GTEST) -o test_v2 $(TESTDIR_2)/unittest.cpp $^ $(LDFLAGS)
+	$(CXX) $(GTEST) -o test_v2 $(TESTDIR_2)unittest.cpp $^ $(LDFLAGS)
 	./test_v2
 
 test: $(BINDIR_0).a $(BINDIR_1).a
-	$(CXX) $(GTEST) -o test_v0 $(TESTDIR_0)/unittest.cpp $^ $(LDFLAGS)
-	$(CXX) $(GTEST) -o test_v1 $(TESTDIR_1)/unittest.cpp $^ $(LDFLAGS)
-	$(CXX) $(GTEST) -o test_v2 $(TESTDIR_2)/unittest.cpp $^ $(LDFLAGS)
+	$(CXX) $(GTEST) -o test_v0 $(TESTDIR_0)unittest.cpp $^ $(LDFLAGS)
+	$(CXX) $(GTEST) -o test_v1 $(TESTDIR_1)unittest.cpp $^ $(LDFLAGS)
+	$(CXX) $(GTEST) -o test_v2 $(TESTDIR_2)unittest.cpp $^ $(LDFLAGS)
 	./test_v0
 	./test_v1
 	./test_v2

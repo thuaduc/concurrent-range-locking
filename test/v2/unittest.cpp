@@ -3,6 +3,8 @@
 #include <set>
 #include <thread>
 #include <vector>
+#include <unordered_map>
+#include <random>
 
 #include "../../src/v2/range_lock.hpp"
 
@@ -11,8 +13,8 @@ constexpr unsigned maxLevel = 16;
 
 // Test case for concurrent insertions
 TEST(ConcurrentRangeLock, ConcurrentInsertions) {
-    int num_threads = 10;
-    int num_elements_per_thread = 100;
+    int num_threads = 50;
+    int num_elements_per_thread = 1000;
     ConcurrentRangeLock<int, maxLevel> crl{};
 
     auto tryLockFunc = [&](int thread_id) {
@@ -37,7 +39,7 @@ TEST(ConcurrentRangeLock, ConcurrentInsertions) {
 
 // Test case for concurrent deletions
 TEST(ConcurrentRangeLock, ConcurrentDeletions) {
-    int num_elements = 1000;
+    int num_elements = 10000;
     ConcurrentRangeLock<int, maxLevel> crl{};
 
     for (int i = 0; i < num_elements; i += 2) {
@@ -53,38 +55,17 @@ TEST(ConcurrentRangeLock, ConcurrentDeletions) {
 
     std::vector<std::thread> threads;
 
-    threads.emplace_back(releaseLockFunc, 0, 500);
-    threads.emplace_back(releaseLockFunc, 500, num_elements);
+    threads.emplace_back(releaseLockFunc, 0, 2000);
+    threads.emplace_back(releaseLockFunc, 2000, 4000);
+    threads.emplace_back(releaseLockFunc, 4000, 6000);
+    threads.emplace_back(releaseLockFunc, 6000, 8000);
+    threads.emplace_back(releaseLockFunc, 8000, 10000);
 
     for (auto& t : threads) {
         t.join();
     }
 
     ASSERT_EQ(crl.size(), 0);
-}
-
-// Test case for concurrent searches
-TEST(ConcurrentRangeLock, ConcurrentSearches) {
-    int num_elements = 100;
-    ConcurrentRangeLock<int, maxLevel> crl{};
-
-    for (int i = 0; i < num_elements; i += 2) {
-        crl.tryLock(i, i + 1);
-    }
-
-    const auto searchFunc = [&](int start, int end) {
-        for (int i = start; i < end; i += 2) {
-            // ASSERT_TRUE(crl.searchLock(i, i + 1));
-        }
-    };
-
-    std::vector<std::thread> threads;
-    threads.emplace_back(searchFunc, 0, num_elements / 2);
-    threads.emplace_back(searchFunc, num_elements / 2, num_elements);
-
-    for (auto& t : threads) {
-        t.join();
-    }
 }
 
 // Test case for all operations concurrently
@@ -97,13 +78,7 @@ TEST(ConcurrentRangeLock, MixedOperationsConcurrently) {
         for (int i = 0; i < num_operations_per_thread; i += 2) {
             int value = thread_id * num_operations_per_thread + i;
 
-            // Even thread IDs insert, odd thread IDs search
-            // All threads attempt to delete
-            if (thread_id % 2 == 0) {
-                crl.tryLock(value, value + 1);
-            } else {
-                // crl.searchLock(value, value + 1);
-            }
+            crl.tryLock(value, value + 1);
             crl.releaseLock(value, value + 1);
         }
     };
@@ -120,121 +95,91 @@ TEST(ConcurrentRangeLock, MixedOperationsConcurrently) {
     ASSERT_EQ(crl.size(), 0);
 }
 
-// Test with high number of threads performing insertions
-TEST(ConcurrentRangeLock, HighConcurrencyInsertions) {
+// Test case for correct order of insertion
+TEST(ConcurrentRangeLock, CorrectInsertion) {
     const int num_threads = 50;
-    const int num_elements_per_thread = 20;
     ConcurrentRangeLock<int, maxLevel> crl{};
 
-    auto tryLockFunc = [&](int thread_id) {
-        for (int i = 0; i < num_elements_per_thread; i += 2) {
-            int value = thread_id * num_elements_per_thread + i;
-            crl.tryLock(value, value + 1);
+    std::vector<std::pair<int, int>> ranges;
+    std::vector<std::pair<int, int>> rangesShuffled;
+
+    for (int i = 0; i < 1000; i += 10) {
+        ranges.push_back(std::make_pair(i, i + 9));
+        rangesShuffled.push_back(std::make_pair(i, i + 9));
+    }
+    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    std::shuffle(rangesShuffled.begin(), rangesShuffled.end(),
+            std::default_random_engine(seed));
+
+
+    auto mixedOpFunc = [&]() {
+        for (int i = 0; i < rangesShuffled.size(); ++i) {
+            auto start = rangesShuffled[i].first;
+            auto end = rangesShuffled[i].second;
+
+            crl.tryLock(start, end);
         }
     };
 
     std::vector<std::thread> threads;
     for (int i = 0; i < num_threads; ++i) {
-        threads.emplace_back(tryLockFunc, i);
+        threads.emplace_back(mixedOpFunc);
     }
 
     for (auto& t : threads) {
         t.join();
     }
 
-    ASSERT_EQ(crl.size(), num_threads * num_elements_per_thread / 2);
-}
+    ASSERT_EQ(crl.size(), ranges.size());
 
-// Test case for validating list integrity after concurrent deletions
-TEST(ConcurrentRangeLock, ValidateIntegrityAfterConcurrentDeletions) {
-    const int num_elements = 1000;
-    ConcurrentRangeLock<int, maxLevel> crl{};
+    for (int i = 0; i < ranges.size(); i ++) {
+        auto start = ranges[i].first;
+        auto end = ranges[i].second;
 
-    for (int i = 0; i < num_elements; i += 2) {
-        crl.tryLock(i, i + 1);
-    }
-
-    crl.displayList();
-
-    auto releaseLockFunc = [&](int start, int end) {
-        for (int i = start; i < end; i += 2) {
-            crl.releaseLock(i, i + 1);
-        }
-    };
-
-    std::vector<std::thread> threads;
-    threads.emplace_back(releaseLockFunc, 0, 500);
-    threads.emplace_back(releaseLockFunc, 500, num_elements);
-
-    for (auto& t : threads) {
-        t.join();
+        crl.releaseLock(start, end);
     }
 
     ASSERT_EQ(crl.size(), 0);
 }
 
-// Edge case test: consecutive insertions and deletions same elements
-TEST(ConcurrentRangeLock, RapidConsecutiveInsertionsAndDeletions) {
-    const int num_threads = 10;
-    const int value = 123;
+// Test case for correct order of insertion
+TEST(ConcurrentRangeLock, CorrectOrderOfInsertion) {
+    std::unordered_map<int, std::string> database;
+    std::uniform_int_distribution<int> dist(0, 9'999'00);
+    std::uniform_int_distribution<int> range_dist(10, 1000);
+
+    const int num_threads = 50;
+    const int num_transactions = 5000;
     ConcurrentRangeLock<int, maxLevel> crl{};
 
-    auto insertDeleteFunc = [&](int) {
-        for (int i = 0; i < 100; i += 2) {
-            crl.tryLock(value, value + 1);
-            crl.releaseLock(value, value + 1);
+    auto mixedOpFunc = [&](int thread_id){
+        std::mt19937 rng(thread_id);
+
+        for (int i = 0; i < num_transactions; ++i) {
+            int start = dist(rng);
+            int end = start + range_dist(rng);
+
+            crl.tryLock(start, end);
         }
     };
 
     std::vector<std::thread> threads;
     for (int i = 0; i < num_threads; ++i) {
-        threads.emplace_back(insertDeleteFunc, i);
+        threads.emplace_back(mixedOpFunc, i);
     }
 
     for (auto& t : threads) {
         t.join();
     }
+
+    // crl.displayList();
+
+    auto pred = crl.head;
+    for (auto curr = pred->next[0]->getReference(); curr != crl.tail;) {
+        ASSERT_TRUE(pred->getEnd() < curr->getStart());
+        ASSERT_TRUE(pred->getStart() < curr->getStart());
+        pred = curr;
+        curr = pred->next[0]->getReference();
+    }
+
 }
-
-// Simple test from leanstore
-// TEST(ConcurrentRangeLock, Simple) {
-//     int NO_THREADS = 50;
-
-//     worker_thread_id = 0;
-
-//     ConcurrentRangeLock<int, maxLevel> crl{};
-
-//     EXPECT_TRUE(crl.tryLock(101, 50));
-//     EXPECT_FALSE(crl.tryLock(100, 2));
-//     EXPECT_TRUE(crl.tryLock(100, 1));
-//     EXPECT_FALSE(crl.tryLock(50, 100));
-//     EXPECT_FALSE(crl.tryLock(50, 200));
-//     EXPECT_FALSE(crl.tryLock(150, 50));
-
-//     EXPECT_FALSE(crl.searchLock(120, 10));
-//     EXPECT_FALSE(crl.searchLock(100, 1));
-//     EXPECT_FALSE(crl.searchLock(90, 20));
-//     EXPECT_TRUE(crl.searchLock(101, 10));
-// }
-
-// TEST(ConcurrentRangeLock, Concurrency) {
-//     ConcurrentRangeLock<int, maxLevel> crl{};
-
-//     std::thread threads[NO_THREADS];
-
-//     for (int idx = 0; idx < NO_THREADS; idx++) {
-//         threads[idx] = std::thread([&, t_id = idx]() {
-//             worker_thread_id = t_id;
-
-//             for (auto i = 0; i < 10000; i++) {
-//                 EXPECT_TRUE(crl.tryLock(t_id * 100 + 1, 100));
-//                 EXPECT_FALSE(crl.searchLock(t_id * 100 + 1, 100));
-//                 crl.unlockRange(t_id * 100 + 1, 100);
-//             }
-//         });
-//     }
-
-//     for (auto& thread : threads) {
-//         thread.join();
-//     }
-// }

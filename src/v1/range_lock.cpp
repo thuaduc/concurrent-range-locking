@@ -16,6 +16,7 @@ struct LNode {
 // List structure for range locks
 struct ListRL {
     std::atomic<LNode*> head;
+    std::atomic <size_t> elementsCount{0};
 
     ListRL() : head(nullptr) {}
 };
@@ -68,10 +69,10 @@ bool InsertNode(ListRL* listrl, LNode* lock) {
                     cur = prev->load();
                 } else if (ret == 0) {  // lock overlaps with cur
                     return false;
-                } else if (ret ==
-                           1) {  // lock precedes cur or reached end of list
+                } else {  // lock precedes cur or reached end of list
                     lock->next.store(cur);
                     if (std::atomic_compare_exchange_strong(prev, &cur, lock)) {
+                        listrl->elementsCount.fetch_add(1, std::memory_order_relaxed);
                         return true;  // success - the range is acquired now
                     }
                     cur =
@@ -83,11 +84,13 @@ bool InsertNode(ListRL* listrl, LNode* lock) {
 }
 
 // Delete node from the list
-void DeleteNode(LNode* lock) {
+void DeleteNode(ListRL* listrl, LNode* lock) {
     LNode* currentNext = lock->next.load();
     LNode* markedNext =
         reinterpret_cast<LNode*>(reinterpret_cast<uintptr_t>(currentNext) | 1);
     lock->next.store(markedNext);
+    listrl->elementsCount.fetch_sub(1, std::memory_order_relaxed);
+
 }
 
 // Acquire a range lock
@@ -101,7 +104,7 @@ RangeLock* MutexRangeAcquire(ListRL* listrl, uint64_t start, uint64_t end) {
 }
 
 // Release a range lock
-void MutexRangeRelease(RangeLock* rl) { DeleteNode(rl->node); }
+void MutexRangeRelease(ListRL* listrl, RangeLock* rl) { DeleteNode(listrl,rl->node); }
 
 // Print the range lock
 void printList(ListRL* listrl) {

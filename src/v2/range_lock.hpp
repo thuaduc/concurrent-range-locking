@@ -4,6 +4,7 @@
 #include <ctime>
 #include <iomanip>
 #include <iostream>
+#include <cassert>
 #include <limits>
 #include <memory>
 #include <mutex>
@@ -13,28 +14,35 @@
 
 #include "node.hpp"
 
-template <typename T, unsigned maxLevel>
+template<typename T, unsigned maxLevel>
 class ConcurrentRangeLock {
-   private:
-    Node<T>* head;
-    Node<T>* tail;
-    std::atomic<size_t> elementsCount{0};
+private:
+    std::atomic <size_t> elementsCount{0};
 
     int randomLevel();
-    bool find(const T& start, const T& end, Node<T>** preds, Node<T>** succs);
-    bool findExact(const T& start, const T& end, Node<T>** preds,
-                   Node<T>** succs);
 
-   public:
+    bool findInsert(T start, T end, Node<T> **preds, Node<T> **succs);
+
+    bool findExact(T start, T end, Node<T> **preds, Node<T> **succs);
+
+    void findDelete(T start, T end);
+
+public:
+    Node<T> *tail;
+    Node<T> *head;
+
     ConcurrentRangeLock();
+
     bool tryLock(T start, T end);
+
     bool releaseLock(T start, T end);
 
     size_t size();
+
     void displayList();
 };
 
-template <typename T, unsigned maxLevel>
+template<typename T, unsigned maxLevel>
 ConcurrentRangeLock<T, maxLevel>::ConcurrentRangeLock() {
     auto min = std::numeric_limits<T>::min();
     auto max = std::numeric_limits<T>::max();
@@ -48,12 +56,12 @@ ConcurrentRangeLock<T, maxLevel>::ConcurrentRangeLock() {
     srand(0);
 }
 
-template <typename T, unsigned maxLevel>
+template<typename T, unsigned maxLevel>
 size_t ConcurrentRangeLock<T, maxLevel>::size() {
     return elementsCount.load();
 }
 
-template <typename T, unsigned maxLevel>
+template<typename T, unsigned maxLevel>
 int ConcurrentRangeLock<T, maxLevel>::randomLevel() {
     int level = 0;
     while (rand() % 2 && level < maxLevel) {
@@ -62,23 +70,22 @@ int ConcurrentRangeLock<T, maxLevel>::randomLevel() {
     return level;
 }
 
-template <typename T, unsigned maxLevel>
-bool ConcurrentRangeLock<T, maxLevel>::find(const T& start, const T& end,
-                                            Node<T>** preds, Node<T>** succs) {
-    int bottomLevel = 0;
+template<typename T, unsigned maxLevel>
+bool ConcurrentRangeLock<T, maxLevel>::findInsert(T start, T end,
+                                                  Node<T> **preds, Node<T> **succs) {
     bool marked[1] = {false};
     bool snip;
-    Node<T>* pred = nullptr;
-    Node<T>* curr = nullptr;
-    Node<T>* succ = nullptr;
+    Node<T> *pred;
+    Node<T> *curr = nullptr;
+    Node<T> *succ;
 
-retry:
+    retry:
     while (true) {
         pred = head;
-        for (int level = maxLevel; level >= bottomLevel; level--) {
+        for (int level = maxLevel; level >= 0; level--) {
             curr = pred->next[level]->getReference();
 
-            while (start >= curr->getEnd()) {
+            while (start > curr->getStart()) {
                 succ = curr->next[level]->get(marked);
                 while (marked[0]) {
                     snip = pred->next[level]->compareAndSet(curr, succ, false,
@@ -89,7 +96,7 @@ retry:
                     curr = pred->next[level]->getReference();
                     succ = curr->next[level]->get(marked);
                 }
-                if (end >= curr->getStart()) {
+                if (start >= curr->getStart()) {
                     pred = curr;
                     curr = succ;
                 } else {
@@ -100,25 +107,24 @@ retry:
             preds[level] = pred;
             succs[level] = curr;
         }
-        return (end > curr->getStart());
+        return (!(start > pred->getEnd() && end < curr->getStart()));
     }
 }
 
-template <typename T, unsigned maxLevel>
-bool ConcurrentRangeLock<T, maxLevel>::findExact(const T& start, const T& end,
-                                                 Node<T>** preds,
-                                                 Node<T>** succs) {
-    int bottomLevel = 0;
+template<typename T, unsigned maxLevel>
+bool ConcurrentRangeLock<T, maxLevel>::findExact(T start, T end,
+                                                 Node<T> **preds,
+                                                 Node<T> **succs) {
     bool marked[1] = {false};
     bool snip;
-    Node<T>* pred = nullptr;
-    Node<T>* curr = nullptr;
-    Node<T>* succ = nullptr;
+    Node<T> *pred;
+    Node<T> *curr = nullptr;
+    Node<T> *succ;
 
-retry:
+    retry:
     while (true) {
         pred = head;
-        for (int level = maxLevel; level >= bottomLevel; level--) {
+        for (int level = maxLevel; level >= 0; level--) {
             curr = pred->next[level]->getReference();
 
             while (start >= curr->getStart()) {
@@ -147,70 +153,106 @@ retry:
     }
 }
 
-template <typename T, unsigned maxLevel>
+template<typename T, unsigned maxLevel>
+void ConcurrentRangeLock<T, maxLevel>::findDelete(T start, T end) {
+    bool marked[1] = {false};
+    bool snip;
+    Node<T> *pred;
+    Node<T> *curr = nullptr;
+    Node<T> *succ;
+
+    retry:
+    while (true) {
+        pred = head;
+        for (int level = maxLevel; level >= 0; level--) {
+            curr = pred->next[level]->getReference();
+
+            while (start >= curr->getStart()) {
+                succ = curr->next[level]->get(marked);
+                while (marked[0]) {
+                    snip = pred->next[level]->compareAndSet(curr, succ, false,
+                                                            false);
+
+                    if (!snip) goto retry;
+
+                    curr = pred->next[level]->getReference();
+                    succ = curr->next[level]->get(marked);
+                }
+                if (start >= curr->getEnd()) {
+                    pred = curr;
+                    curr = succ;
+                } else {
+                    break;
+                }
+            }
+        }
+        return;
+    }
+}
+
+
+template<typename T, unsigned maxLevel>
 bool ConcurrentRangeLock<T, maxLevel>::tryLock(T start, T end) {
     int topLevel = randomLevel();
-    int bottomLevel = 0;
-    Node<T>* preds[maxLevel + 1];
-    Node<T>* succs[maxLevel + 1];
+    Node<T> *preds[maxLevel + 1];
+    Node<T> *succs[maxLevel + 1];
 
     while (true) {
-        bool found = find(start, end, preds, succs);
+        bool found = findInsert(start, end, preds, succs);
         if (found) {
             return false;
         } else {
-            Node<T>* newNode = new Node<T>();
+            auto newNode = new Node<T>();
             newNode->initialize(start, end, topLevel);
 
-            for (int level = bottomLevel; level <= topLevel; ++level) {
-                Node<T>* succ = succs[level];
+            for (int level = 0; level <= topLevel; ++level) {
+                Node<T> *succ = succs[level];
                 newNode->next[level]->store(succ, false);
             }
 
-            Node<T>* pred = preds[bottomLevel];
-            Node<T>* succ = succs[bottomLevel];
+            auto pred = preds[0];
+            auto succ = succs[0];
 
-            newNode->next[bottomLevel]->store(succ, false);
-            if (!pred->next[bottomLevel]->compareAndSet(succ, newNode, false,
-                                                        false)) {
+            newNode->next[0]->store(succ, false);
+            if (!pred->next[0]->compareAndSet(succ, newNode, false, false)) {
                 continue;
             }
 
-            for (int level = bottomLevel + 1; level <= topLevel; ++level) {
+            for (int level = 1; level <= topLevel; ++level) {
                 while (true) {
                     pred = preds[level];
                     succ = succs[level];
-                    if (pred->next[level]->compareAndSet(succ, newNode, false,
-                                                         false)) {
+                    if (pred->next[level]->compareAndSet(succ, newNode, false, false)) {
                         break;
+                    } else {
+                        findInsert(start, end, preds, succs);
                     }
-
-                    find(start, end, preds, succs);
                 }
             }
+
             elementsCount.fetch_add(1, std::memory_order_relaxed);
             return true;
         }
     }
 }
 
-template <typename T, unsigned maxLevel>
+template<typename T, unsigned maxLevel>
 bool ConcurrentRangeLock<T, maxLevel>::releaseLock(T start, T end) {
-    int bottomLevel = 0;
-    Node<T>* preds[maxLevel + 1];
-    Node<T>* succs[maxLevel + 1];
-    Node<T>* succ;
+    Node<T> *preds[maxLevel + 1];
+    Node<T> *succs[maxLevel + 1];
+    Node<T> *succ;
 
     while (true) {
         bool found = findExact(start, end, preds, succs);
         if (!found) {
-            std::cerr << "Range not found. Wrong ussage of releaseLock. "
-                      << start << " " << end << std::endl;
+            std::cerr << "Range not found. Wrong usage of releaseLock. "
+                      << start << " " << end << ". succ[0]" << succs[0]->getStart() << " " << succs[0]->getEnd()
+                      << std::endl;
             return false;
         } else {
-            Node<T>* nodeToRemove = succs[bottomLevel];
+            Node<T> *nodeToRemove = succs[0];
             for (int level = nodeToRemove->getTopLevel();
-                 level >= bottomLevel + 1; level--) {
+                 level >= 0 + 1; level--) {
                 bool marked[1] = {false};
                 succ = nodeToRemove->next[level]->get(marked);
                 while (!marked[0]) {
@@ -220,19 +262,19 @@ bool ConcurrentRangeLock<T, maxLevel>::releaseLock(T start, T end) {
             }
 
             bool marked[1] = {false};
-            succ = nodeToRemove->next[bottomLevel]->get(marked);
+            succ = nodeToRemove->next[0]->get(marked);
             while (true) {
-                bool iMarkedIt = nodeToRemove->next[bottomLevel]->compareAndSet(
-                    succ, succ, false, true);
-                succ = succs[bottomLevel]->next[bottomLevel]->get(marked);
+                bool iMarkedIt = nodeToRemove->next[0]->compareAndSet(
+                        succ, succ, false, true);
+                succ = succs[0]->next[0]->get(marked);
                 if (iMarkedIt) {
-                    findExact(start, end, preds, succs);
+                    findDelete(start, end);
 
                     elementsCount.fetch_sub(1, std::memory_order_relaxed);
                     return true;
                 } else if (marked[0]) {
                     std::cerr << "Other thread is trying to release this "
-                                 "range. Wrong usage of releaseLock somewhere"
+                                 "range. Wrong usage of releaseLock somewhere."
                               << std::endl;
                     return false;
                 }
@@ -241,7 +283,7 @@ bool ConcurrentRangeLock<T, maxLevel>::releaseLock(T start, T end) {
     }
 }
 
-template <typename T, unsigned maxLevel>
+template<typename T, unsigned maxLevel>
 void ConcurrentRangeLock<T, maxLevel>::displayList() {
     std::cout << "Concurrent Range Lock" << std::endl;
 
@@ -252,10 +294,12 @@ void ConcurrentRangeLock<T, maxLevel>::displayList() {
 
     int len = static_cast<int>(this->elementsCount);
 
-    std::vector<std::vector<std::string>> builder(
-        len, std::vector<std::string>(maxLevel + 1));
+    std::vector <std::vector<std::string>> builder(
+            len, std::vector<std::string>(maxLevel + 1));
 
-    Node<T>* current = head->next[0]->getReference();
+    Node<T> *current = head->next[0]->getReference();
+
+    bool marked[] = {false};
 
     for (int i = 0; i < len; ++i) {
         for (int j = 0; j < maxLevel + 1; ++j) {
@@ -263,13 +307,13 @@ void ConcurrentRangeLock<T, maxLevel>::displayList() {
                 std::ostringstream oss;
                 oss << "[" << std::setw(2) << std::setfill('0')
                     << current->getStart() << "," << std::setw(2)
-                    << std::setfill('0') << current->getEnd() << "]";
+                    << std::setfill('0') << current->getEnd() << " " << marked[0] << "]";
                 builder[i][j] = oss.str();
             } else {
                 builder[i][j] = "---------";
             }
         }
-        current = current->next[0]->getReference();
+        current = current->next[0]->get(marked);
     }
 
     for (int i = maxLevel; i >= 0; --i) {

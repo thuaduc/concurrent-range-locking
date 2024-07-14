@@ -80,7 +80,7 @@ double thread_v1(std::vector<std::pair<int, int>> &ranges) {
                     std::chrono::microseconds(((start + end) * 100) % 10000));
 
                 if (rl != nullptr) {
-                    MutexRangeRelease(rl);
+                    MutexRangeRelease(&list,rl);
                 }
             }
         });

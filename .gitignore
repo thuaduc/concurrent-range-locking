@@ -1,7 +1,10 @@
+.idea
 .vscode
 *.dSYM
 *.o
 *.a
+
+log.txt
 
 main
 example
