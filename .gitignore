@@ -19,7 +19,6 @@ test_v2
 v2
 
 unittest
-benchmark
 
 Makefile.override
 
