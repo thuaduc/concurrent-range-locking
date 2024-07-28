@@ -12,7 +12,8 @@ constexpr uint16_t lockHeight = 4;
 std::vector<std::pair<int, int>> initial_ranges;
 std::vector<std::pair<int, int>> instant_ranges;
 
-void read_ranges(const std::string& initial_ranges_file, const std::string& instant_ranges_file) {
+void read_ranges(const std::string& initial_ranges_file,
+                 const std::string& instant_ranges_file) {
     std::ifstream initial_in(initial_ranges_file);
     std::ifstream instant_in(instant_ranges_file);
 
@@ -26,7 +27,7 @@ void read_ranges(const std::string& initial_ranges_file, const std::string& inst
 }
 
 // Function to simulate range locking for v0
-void range_lock_v0(ConcurrentRangeLock<uint64_t, lockHeight> &crl) {
+void range_lock_v0(ConcurrentRangeLock<uint64_t, lockHeight>& crl) {
     // Lock predefined 1 million ranges
     for (const auto& range : initial_ranges) {
         int start = range.first;
@@ -49,7 +50,6 @@ void range_lock_v0(ConcurrentRangeLock<uint64_t, lockHeight> &crl) {
         crl.releaseLock(start, end);
     }
 
-
     // Release the initial 1 million ranges
     for (const auto& range : initial_ranges) {
         int start = range.first;
@@ -57,11 +57,10 @@ void range_lock_v0(ConcurrentRangeLock<uint64_t, lockHeight> &crl) {
 
         crl.releaseLock(start, end);
     }
-
 }
 
 // Function to simulate range locking for v1
-void range_lock_v1(ListRL &list) {
+void range_lock_v1(ListRL& list) {
     std::vector<RangeLock*> acquired_locks;
 
     // Lock predefined 1 million ranges
@@ -110,13 +109,14 @@ auto benchmark_v0(int num_threads) {
     }
 
     auto start_time = std::chrono::high_resolution_clock::now();
-    for (auto &thread : threads) {
+    for (auto& thread : threads) {
         thread.join();
     }
     auto end_time = std::chrono::high_resolution_clock::now();
 
     std::chrono::duration<double> total_time = end_time - start_time;
-    std::cout << "Num threads: " << num_threads << ". Total time taken v0: " << total_time.count() << " seconds"
+    std::cout << "Num threads: " << num_threads
+              << ". Total time taken v0: " << total_time.count() << " seconds"
               << std::endl;
 
     return total_time.count();
@@ -132,20 +132,21 @@ auto benchmark_v1(int num_threads) {
     }
 
     auto start_time = std::chrono::high_resolution_clock::now();
-    for (auto &thread : threads) {
+    for (auto& thread : threads) {
         thread.join();
     }
     auto end_time = std::chrono::high_resolution_clock::now();
 
     std::chrono::duration<double> total_time = end_time - start_time;
-    std::cout << "Num threads: " << num_threads << ". Total time taken v1: " << total_time.count() << " seconds"
+    std::cout << "Num threads: " << num_threads
+              << ". Total time taken v1: " << total_time.count() << " seconds"
               << std::endl;
 
     return total_time.count();
 }
 
 int main() {
-    read_ranges("initial_ranges.txt", "instant_ranges.txt");
+    read_ranges("data/initial_ranges.txt", "data/instant_ranges.txt");
 
     std::cout << "Done with read range; Start benchmark" << std::endl;
 

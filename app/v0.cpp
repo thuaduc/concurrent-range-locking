@@ -22,7 +22,6 @@ int main() {
 
     list.displayList();
 
-
     /* auto mixedOpFunc = [&](uint64_t start, uint64_t end) {
          for (int i = 0; i < 1000; ++i) {
              list.tryLock(start, end);

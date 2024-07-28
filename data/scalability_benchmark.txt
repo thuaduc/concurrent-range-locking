@@ -1,0 +1,184 @@
+Threads: 1
+Average locks per second: 67072.3
+Threads: 2
+Average locks per second: 123208
+Threads: 3
+Average locks per second: 182576
+Threads: 4
+Average locks per second: 228589
+Threads: 5
+Average locks per second: 235322
+Threads: 6
+Average locks per second: 254804
+Threads: 7
+Average locks per second: 276681
+Threads: 8
+Average locks per second: 274828
+Threads: 1
+Average locks per second: 106.211
+Threads: 2
+Average locks per second: 357.347
+Threads: 3
+Average locks per second: 542.597
+Threads: 4
+Average locks per second: 708.059
+Threads: 5
+Average locks per second: 1222.47
+Threads: 6
+Average locks per second: 1487.77
+Threads: 7
+Average locks per second: 1532.2
+Threads: 8
+Average locks per second: 2034.4
+Threads: 1
+Average locks per second: 67634.1
+Threads: 2
+Average locks per second: 124399
+Threads: 3
+Average locks per second: 185095
+Threads: 4
+Average locks per second: 243049
+Threads: 5
+Average locks per second: 242411
+Threads: 6
+Average locks per second: 247770
+Threads: 7
+Average locks per second: 261610
+Threads: 8
+Average locks per second: 274712
+Threads: 1
+Average locks per second: 104.306
+Threads: 2
+Average locks per second: 358.843
+Threads: 3
+Average locks per second: 695.162
+Threads: 4
+Average locks per second: 957.123
+Threads: 5
+Average locks per second: 1184.54
+Threads: 6
+Average locks per second: 1298.51
+Threads: 7
+Average locks per second: 1708.91
+Threads: 8
+Average locks per second: 1708.04
+Threads: 1
+Average locks per second: 66244.6
+Threads: 7
+Average locks per second: 276094
+Threads: 13
+Average locks per second: 288950
+Threads: 19
+Average locks per second: 307460
+Threads: 25
+Average locks per second: 313607
+Threads: 1
+Average locks per second: 106.553
+Threads: 7
+Average locks per second: 1821.97
+Threads: 13
+Average locks per second: 2619.39
+Threads: 19
+Average locks per second: 4228.63
+Threads: 25
+Average locks per second: 4745.86
+Threads: 1
+Average locks per second: 0
+Threads: 7
+Average locks per second: 590.262
+Threads: 13
+Average locks per second: 489.309
+Threads: 19
+Average locks per second: 383.336
+Threads: 25
+Average locks per second: 0
+Threads: 1
+Average locks per second: 8.49072e+06
+Threads: 7
+Average locks per second: 5.40304e+06
+Threads: 13
+Average locks per second: 4.84933e+06
+Threads: 19
+Average locks per second: 5.25735e+06
+Threads: 25
+Average locks per second: 3.87352e+06
+TThreads: 1
+Average locks per second: 1.29809e+06
+Threads: 7
+Average locks per second: 2.06534e+06
+Threads: 13
+Average locks per second: 2.64092e+06
+Threads: 19
+Average locks per second: 2.28397e+06
+Threads: 25
+Average locks per second: 2.09524e+06
+Threads: 1
+Average locks per second: 314376
+Threads: 7
+Average locks per second: 665840
+Threads: 13
+Average locks per second: 879981
+Threads: 19
+Average locks per second: 792291
+Threads: 25
+Average locks per second: 907018
+Threads: 1
+Average locks per second: 552213
+Threads: 7
+Average locks per second: 1.54529e+06
+Threads: 13
+Average locks per second: 1.80702e+06
+Threads: 19
+Average locks per second: 1.87294e+06
+Threads: 25
+Average locks per second: 1.86994e+06
+Threads: 1
+Average locks per second: 31490.1
+Threads: 7
+Average locks per second: 108308
+Threads: 13
+Average locks per second: 121964
+Threads: 19
+Average locks per second: 125857
+Threads: 25
+Average locks per second: 121123
+Threads: 1
+Average locks per second: 144861
+Threads: 7
+Average locks per second: 523059
+Threads: 13
+Average locks per second: 625856
+Threads: 19
+Average locks per second: 641466
+Threads: 25
+Average locks per second: 654064
+Threads: 1
+Average locks per second: 5956.56
+Threads: 7
+Average locks per second: 22586.6
+Threads: 13
+Average locks per second: 23670.8
+Threads: 19
+Average locks per second: 23041.1
+Threads: 25
+Average locks per second: 22905
+Threads: 1
+Average locks per second: 142331
+Threads: 5
+Average locks per second: 502555
+Threads: 9
+Average locks per second: 611300
+Threads: 13
+Average locks per second: 634344
+Threads: 17
+Average locks per second: 625141
+Threads: 1
+Average locks per second: 6046.91
+Threads: 5
+Average locks per second: 20074.1
+Threads: 9
+Average locks per second: 23643.4
+Threads: 13
+Average locks per second: 23249.8
+Threads: 17
+Average locks per second: 22821.3

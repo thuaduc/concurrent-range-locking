@@ -6,8 +6,8 @@
 #include <unordered_map>
 #include <vector>
 
-#include "../src/v1/range_lock.cpp"
-#include "../src/v2/range_lock.hpp"
+#include "../src/v0/range_lock.hpp"
+#include "../src/v2/range_lock.cpp"
 
 #define GREEN "\033[32m"
 #define RED "\033[31m"
@@ -54,14 +54,14 @@ void database_transaction_v0(ConcurrentRangeLock<uint64_t, lockHeight> &crl,
             database[key] = "updated_by_thread_" + std::to_string(thread_id);
         }
 
-        if (!crl.releaseLock(start, end)){
+        if (!crl.releaseLock(start, end)) {
             crl.displayList();
             exit(EXIT_FAILURE);
         }
 
-       /* printMutex.lock();
-        logFile << "thread " << thread_id << RED << " released" << " " << DEF << start << " " << end << std::endl;
-        printMutex.unlock();*/
+        /* printMutex.lock();
+         logFile << "thread " << thread_id << RED << " released" << " " << DEF << start << " " << end << std::endl;
+         printMutex.unlock();*/
     }
 }
 
@@ -86,7 +86,7 @@ void database_transaction_v1(ListRL &list, int thread_id,
             database[key] = "updated_by_thread_" + std::to_string(thread_id);
         }
 
-        MutexRangeRelease(&list,rl);
+        MutexRangeRelease(&list, rl);
     }
 }
 

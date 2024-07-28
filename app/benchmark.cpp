@@ -11,7 +11,7 @@
 #include <vector>
 
 #include "../src/v0/range_lock.hpp"
-#include "../src/v1/range_lock.cpp"
+#include "../src/v2/range_lock.cpp"
 
 constexpr uint64_t numThreads = 20;
 constexpr uint16_t lockHeight = 5;
@@ -20,8 +20,8 @@ const std::vector<int> testRanges = {100000, 200000, 300000, 400000, 500000};
 
 std::vector<std::pair<int, int>> createRanges(int x) {
     std::vector<std::pair<int, int>> ranges;
-    for (int i = 0; i < x; i += 10) {
-        ranges.push_back(std::make_pair(i, i + 20));
+    for (int i = 0; i < x; i += 20) {
+        ranges.push_back(std::make_pair(i, i + 10));
     }
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
     std::shuffle(ranges.begin(), ranges.end(),
@@ -34,6 +34,7 @@ double thread_v0(std::vector<std::pair<int, int>> &ranges) {
     ConcurrentRangeLock<uint64_t, lockHeight> crl{};
     std::vector<std::thread> threads;
 
+    auto start = std::chrono::steady_clock::now();
     for (int i = 0; i < numThreads; ++i) {
         threads.emplace_back([&crl, &ranges, i] {
             for (size_t j = i; j < ranges.size(); j += numThreads) {
@@ -41,18 +42,17 @@ double thread_v0(std::vector<std::pair<int, int>> &ranges) {
                 auto end = ranges[j].second;
 
                 bool res = crl.tryLock(start, end);
+                // std::this_thread::sleep_for(
+                //     std::chrono::microseconds(((start + end) * 100) %
+                //     10000));
 
-                std::this_thread::sleep_for(
-                    std::chrono::microseconds(((start + end) * 100) % 10000));
-
-                if (res) {
-                    crl.releaseLock(start, end);
-                }
+                // if (res) {
+                //     crl.releaseLock(start, end);
+                // }
             }
         });
     }
 
-    auto start = std::chrono::steady_clock::now();
     for (auto &thread : threads) {
         thread.join();
     }
@@ -76,12 +76,13 @@ double thread_v1(std::vector<std::pair<int, int>> &ranges) {
 
                 auto rl = MutexRangeAcquire(&list, start, end);
 
-                std::this_thread::sleep_for(
-                    std::chrono::microseconds(((start + end) * 100) % 10000));
+                // std::this_thread::sleep_for(
+                //     std::chrono::microseconds(((start + end) * 100) %
+                //     10000));
 
-                if (rl != nullptr) {
-                    MutexRangeRelease(&list,rl);
-                }
+                // if (rl != nullptr) {
+                //     MutexRangeRelease(&list, rl);
+                // }
             }
         });
     }

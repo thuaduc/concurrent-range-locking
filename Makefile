@@ -14,24 +14,26 @@ TESTDIR_0 = test/v0/
 TESTDIR_1 = test/v1/
 TESTDIR_2 = test/v2/
 
-
 LDFLAGS = -L$(GTEST_LIB) -lgtest -lgtest_main -pthread
 
-OBJS_0 = $(addprefix $(BINDIR_0), range_lock.o node.o)
-OBJS_1 = $(addprefix $(BINDIR_1), range_lock.o)
-OBJS_2 = $(addprefix $(BINDIR_2), range_lock.o node.o atomic_reference.o)
+OBJS_0 = $(addprefix $(BINDIR_0), range_lock.o node.o atomic_reference.o)
+OBJS_1 = $(addprefix $(BINDIR_1), range_lock.o node.o)
+OBJS_2 = $(addprefix $(BINDIR_2), range_lock.o)
 
 GTEST = $(addprefix -I, $(GTEST_DIR))
 
-.PHONY: all clean benchmark test debug v2 database
+.PHONY: all clean benchmark test debug v2 database scalability
 
 all: unittest benchmark
 
-v2:  $(BINDIR_2).a
-	$(CXX) -o $@ $(APPDIR)v2.cpp $^
+v0:  $(BINDIR_0).a
+	$(CXX) -o $@ $(APPDIR)v0.cpp $^
 
 benchmark: $(BINDIR_0).a $(BINDIR_1).a $(BINDIR_2).a
 	$(CXX) -o $@ $(APPDIR)benchmark.cpp $^
+
+scalability: $(BINDIR_0).a $(BINDIR_1).a $(BINDIR_2).a
+	$(CXX) -o $@ $(APPDIR)scalability.cpp $^
 
 debug: $(BINDIR_0).a $(BINDIR_1).a $(BINDIR_2).a
 	$(CXX) -o $@ $(APPDIR)debug.cpp $^
@@ -39,9 +41,9 @@ debug: $(BINDIR_0).a $(BINDIR_1).a $(BINDIR_2).a
 database:  $(BINDIR_0).a $(BINDIR_1).a $(BINDIR_2).a
 	$(CXX) -o $@ $(APPDIR)database.cpp $^
 
-test2: $(BINDIR_2).a
-	$(CXX) $(GTEST) -o test_v2 $(TESTDIR_2)unittest.cpp $^ $(LDFLAGS)
-	./test_v2
+test_main: $(BINDIR_2).a
+	$(CXX) $(GTEST) -o test_v0 $(TESTDIR_0)unittest.cpp $^ $(LDFLAGS)
+	./test_v0
 
 test: $(BINDIR_0).a $(BINDIR_1).a
 	$(CXX) $(GTEST) -o test_v0 $(TESTDIR_0)unittest.cpp $^ $(LDFLAGS)
@@ -70,4 +72,4 @@ $(BINDIR_2)%.o: $(SRCDIR_2)%.cpp
 	$(CXX) $(CFLAGS) $< -o $@
 
 clean:
-	rm -rf $(BINDIR_0)* $(BINDIR_1)* $(BINDIR_2)* benchmark v2 debug test_v0 test_v1 test_v2 v2 debug *.dSYM database
+	rm -rf $(BINDIR_0)* $(BINDIR_1)* $(BINDIR_2)* benchmark v2 debug test_v0 test_v1 test_v2 v2 debug *.dSYM database scalability 

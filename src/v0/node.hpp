@@ -1,92 +1,60 @@
-#pragma once
-#include <atomic>
-#include <chrono>
-#include <cstdlib>
 #include <functional>
-#include <iostream>
 #include <memory>
-#include <mutex>
-#include <new>
-#include <thread>
+#include <utility>
 
-class OptimisticMutex {
-   public:
-    OptimisticMutex() : version(0) {}
-
-    void lock() {
-        int expectedVersion;
-        while (true) {
-            expectedVersion = version.load(std::memory_order_acquire);
-
-            // Check if the lock is free (even version number)
-            if ((expectedVersion & 1) == 0) {
-                // Try to acquire the lock by incrementing the version number
-                if (version.compare_exchange_strong(
-                        expectedVersion, expectedVersion + 1,
-                        std::memory_order_acq_rel)) {
-                    break;  // Acquired the lock
-                }
-            } else {
-                // Optional: Use a short spin-wait before retrying
-                std::this_thread::yield();
-            }
-        }
-    }
-
-    void unlock() {
-        // Increment the version number to release the lock
-        version.fetch_add(1, std::memory_order_release);
-    }
-
-   private:
-    std::atomic<int> version;
-};
-
-constexpr uint64_t CacheLineSize = 64;
+#include "./atomic_reference.hpp"
 
 template <typename T>
-struct alignas(CacheLineSize) Node {
-    Node(T start, T end, int level);
+class Node {
+   public:
+    T start;
+    T end;
+    int topLevel;
+
+    Node();
     ~Node();
+
+    void initialize(T start, T end, int topLevel);
+    void initializeHead(T start, T end, int topLevel, Node<T>* tail);
 
     int getTopLevel() const;
     T getStart() const;
     T getEnd() const;
 
-    Node **next;
-    bool marked = false;
-    bool fullyLinked = false;
-
-    void lock();
-    void unlock();
-
-   private:
-    T start;
-    T end;
-    int topLevel;
-    // OptimisticMutex mutex;
-    std::mutex mutex;
+    AtomicMarkableReference<Node<T>>** next;
 };
 
 template <typename T>
-Node<T>::Node(T start, T end, int level)
-    : start{start}, end{end}, topLevel{level} {
-    next = new Node<T> *[level + 1];
+Node<T>::Node() {}
+
+template <typename T>
+void Node<T>::initialize(T start, T end, int topLevel) {
+    this->start = start;
+    this->end = end;
+    this->topLevel = topLevel;
+
+    next = new AtomicMarkableReference<Node<T>>*[topLevel + 1];
+    for (int i = 0; i <= topLevel; ++i) {
+        next[i] = new AtomicMarkableReference<Node<T>>();
+    }
+}
+
+template <typename T>
+void Node<T>::initializeHead(T start, T end, int topLevel, Node<T>* tail) {
+    this->start = start;
+    this->end = end;
+    this->topLevel = topLevel;
+
+    next = new AtomicMarkableReference<Node<T>>*[topLevel + 1];
+    for (int i = 0; i <= topLevel; ++i) {
+        next[i] = new AtomicMarkableReference<Node<T>>();
+        next[i]->store(tail, false);
+    }
 }
 
 template <typename T>
 Node<T>::~Node() {
-    // delete next;
-}
-
-template <typename T>
-void Node<T>::lock() {
-    mutex.lock();
-}
-
-template <typename T>
-void Node<T>::unlock() {
-    mutex.unlock();
+    // delete
 }
 
 template <typename T>
