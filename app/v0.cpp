@@ -1,26 +1,109 @@
+#include <cassert>
 #include <iostream>
+#include <thread>
 
-#include "../src/v1/range_lock.cpp"
-#include "../src/v2/range_lock.hpp"
+#include "../src/v0/range_lock.hpp"
+#include "../src/v3/range_lock.hpp"
+
+// int main() {
+//     const int num_threads = 2;
+//     RangeLock rl;
+
+//     std::vector<std::pair<int, int>> ranges;
+//     std::vector<std::pair<int, int>> rangesShuffled;
+
+//     for (int i = 0; i < 1000; i += 10) {
+//         ranges.push_back(std::make_pair(i, i + 5));
+//         rangesShuffled.push_back(std::make_pair(i, i + 5));
+//     }
+//     unsigned seed =
+//     std::chrono::system_clock::now().time_since_epoch().count();
+//     std::shuffle(rangesShuffled.begin(), rangesShuffled.end(),
+//                  std::default_random_engine(seed));
+
+//     auto mixedOpFunc = [&]() {
+//         for (int i = 0; i < rangesShuffled.size(); ++i) {
+//             auto start = rangesShuffled[i].first;
+//             auto end = rangesShuffled[i].second;
+
+//             rl.tryLock(start, end);
+//         }
+//     };
+
+//     std::vector<std::thread> threads;
+//     for (int i = 0; i < num_threads; ++i) {
+//         threads.emplace_back(mixedOpFunc);
+//     }
+
+//     for (auto& t : threads) {
+//         t.join();
+//     }
+
+//     std::cout << "size: " << rl.size() << std::endl;
+//     std::cout << ranges.size() << " " << rangesShuffled.size() << std::endl;
+
+//     for (int i = 0; i < ranges.size(); i++) {
+//         auto start = ranges[i].first;
+//         auto end = ranges[i].second;
+
+//         rl.releaseLock(start);
+//     }
+
+//     std::cout << "size: " << rl.size() << std::endl;
+// }
 
 int main() {
-    ConcurrentRangeLock<uint64_t, 4> list = ConcurrentRangeLock<uint64_t, 4>();
+    RangeLock rl;
+    rl.tryLock(0, 1);
+    rl.tryLock(3, 4);
+    rl.tryLock(3, 4);
+    rl.tryLock(3, 4);
+    rl.tryLock(4, 5);
+    rl.tryLock(5, 6);
 
-    list.tryLock(20, 30);
-    list.tryLock(320, 330);
-    list.tryLock(40, 50);
-    list.tryLock(5, 10);
-    list.tryLock(80, 100);
-    list.tryLock(140, 150);
-    list.tryLock(304, 305);
-    list.tryLock(160, 240);
-    list.tryLock(302, 303);
-    list.tryLock(300, 301);
-    list.tryLock(130, 140);
-    list.tryLock(305, 310);
-    list.tryLock(110, 120);
+    rl.displayList();
 
-    list.displayList();
+    ConcurrentRangeLock<uint64_t, 4> crl;
+    crl.tryLock(3, 4);
+    crl.tryLock(3, 4);
+    crl.tryLock(3, 4);
+    crl.tryLock(4, 5);
+    crl.tryLock(5, 6);
+
+    crl.displayList();
+
+    // RangeLock rl;
+
+    // for (int i = 0; i < 100; i += 2) {
+    //     rl.tryLock(i, i + 1);
+    // }
+
+    // for (int i = 0; i < 90; i += 2) {
+    //     rl.releaseLock(i);
+    // }
+
+    // rl.displayList();
+
+    // std::cout << "size " << rl.size() << std::endl;
+
+    // ConcurrentRangeLock<uint64_t, 4> list = ConcurrentRangeLock<uint64_t,
+    // 4>();
+
+    // list.tryLock(20, 30);
+    // list.tryLock(320, 330);
+    // list.tryLock(40, 50);
+    // list.tryLock(5, 10);
+    // list.tryLock(80, 100);
+    // list.tryLock(140, 150);
+    // list.tryLock(304, 305);
+    // list.tryLock(160, 240);
+    // list.tryLock(302, 303);
+    // list.tryLock(300, 301);
+    // list.tryLock(130, 140);
+    // list.tryLock(305, 310);
+    // list.tryLock(110, 120);
+
+    // list.displayList();
 
     /* auto mixedOpFunc = [&](uint64_t start, uint64_t end) {
          for (int i = 0; i < 1000; ++i) {
