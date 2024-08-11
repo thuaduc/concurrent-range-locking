@@ -8,6 +8,7 @@
 #include <random>
 #include <sstream>
 #include <vector>
+#include <atomic>
 
 class SkipListNode {
    public:

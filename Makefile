@@ -21,8 +21,7 @@ TESTDIR_3 = test/v3/
 TESTDIR_4 = test/v4/
 
 LDFLAGS = -L$(GTEST_LIB) -lgtest -lgtest_main -pthread
-BMFLAGS = -L$(BENCHMARK_LIB) -lbenchmark -lpthread
-
+BMFLAGS = -L$(BENCHMARK_LIB)
 OBJS_0 = $(addprefix $(BINDIR_0), range_lock.o node.o atomic_reference.o)
 OBJS_1 = $(addprefix $(BINDIR_1), range_lock.o node.o)
 OBJS_2 = $(addprefix $(BINDIR_2), range_lock.o)
@@ -68,8 +67,7 @@ gtest: $(BINDIR_0)v.a $(BINDIR_1)v.a $(BINDIR_2)v.a $(BINDIR_3)v.a
 	$(CXX) $(GTEST) -o gtest $(APPDIR)gtest.cpp $^ $(BMFLAGS)
 
 gtest2: $(BINDIR_0)v.a
-	$(CXX) $(GTEST) -o gtest2 $(APPDIR)gtest2.cpp $^ $(BMFLAGS)	
-
+	$(CXX) -o gtest2 $(APPDIR)gtest2.cpp $^
 # V0
 $(BINDIR_0)v.a: $(OBJS_0)
 	ar rcs $@ $^
