@@ -22,7 +22,9 @@ test_v3
 test_v4
 
 v0
+v2
 gtest
+gtest2
 
 Makefile.override
 

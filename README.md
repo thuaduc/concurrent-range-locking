@@ -17,12 +17,13 @@ Level 0: head ->[00,05]->[08,13]->[14,19]->[21,26]->[28,33]->[36,41]->[42,47]->[
 
 ## Author
 
-The open-source implementation belongs to Thua-Duc Nguyen <thuaduc.nguyen@tum.de>, produced as part of his bachelor's thesis. The project was under the advice of Lam-Duy Nguyen lamduy.nguyen@tum.de and under the supervision of Prof. Dr. Viktor Leis <leis@in.tum.de>. 
+The open-source implementation belongs to Thua-Duc Nguyen <thuaduc.nguyen@tum.de>, produced as part of his bachelor's thesis. The project was under the advice of Lam-Duy Nguyen lamduy.nguyen@tum.de and under the supervision of Prof. Dr. Viktor Leis <leis@in.tum.de>.
 
 ## Build
 
-Prerequisites: 
-- [googletest](https://github.com/google/googletest) 
+Prerequisites:
+
+- [googletest](https://github.com/google/googletest)
 - [gbenchmark](https://github.com/google/benchmark)
 
 ```sh
@@ -47,4 +48,26 @@ ConcurrentRangeLock<uint16_t, 4> rangeLock{};
 ```C++
 rangeLock.tryLock(1, 10)
 rangeLock.releaseLock(1, 10);
+```
+
+- Makefile.override mac
+
+```sh
+GTEST_DIR = /usr/local/Cellar/googletest/1.14.0/include
+GTEST_LIB = /usr/local/Cellar/googletest/1.14.0/lib
+CXX = clang++ -std=c++20 -O3
+
+CXXX = -fsanitize=leak -fsanitize=undefined -fsanitize=address -fno-omit-frame-pointer
+
+CFLAGS = -Wall -pedantic -Wextra -c -O3 -g
+
+BENCHMARK_DIR = /usr/local/Cellar/google-benchmark/1.8.5/include
+BENCHMARK_LIB = /usr/local/Cellar/google-benchmark/1.8.5/lib
+
+```
+
+- Makefile.override linux
+
+```sh
+
 ```

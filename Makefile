@@ -67,6 +67,9 @@ test: $(BINDIR_3)v.a
 gtest: $(BINDIR_0)v.a $(BINDIR_1)v.a $(BINDIR_2)v.a $(BINDIR_3)v.a
 	$(CXX) $(GTEST) -o gtest $(APPDIR)gtest.cpp $^ $(BMFLAGS)
 
+gtest2: $(BINDIR_0)v.a
+	$(CXX) $(GTEST) -o gtest2 $(APPDIR)gtest2.cpp $^ $(BMFLAGS)	
+
 # V0
 $(BINDIR_0)v.a: $(OBJS_0)
 	ar rcs $@ $^
