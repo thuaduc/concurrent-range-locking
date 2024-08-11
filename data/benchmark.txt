@@ -78,3 +78,19 @@ Run time v1: 9.99321
 Range: 500000
 Run time v0: 12.5981
 Run time v1: 12.4585
+Benchmarking results
+Range: 100000
+Run time v0: 0.00305798
+Run time v1: 0.0356584
+Range: 200000
+Run time v0: 0.0133484
+Run time v1: 0.145373
+Range: 300000
+Run time v0: 0.0278288
+Run time v1: 0.336317
+Range: 400000
+Run time v0: 0.04228
+Run time v1: 0.586394
+Range: 500000
+Run time v0: 0.0674292
+Run time v1: 1.05376

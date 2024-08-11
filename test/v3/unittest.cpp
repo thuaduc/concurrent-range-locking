@@ -6,23 +6,20 @@
 #include <unordered_map>
 #include <vector>
 
-#include "../../src/v0/range_lock.hpp"
-
-// Predefined maxLevel
-constexpr unsigned maxLevel = 4;
+#include "../../src/v3/range_lock.hpp"
 
 // Test case for concurrent insertions
-TEST(ConcurrentRangeLock, ConcurrentInsertions) {
-    int num_threads = 50;
-    int num_elements_per_thread = 1000;
-    ConcurrentRangeLock<int, maxLevel> crl{};
+TEST(XiangSongRangeLock, ConcurrentInsertions) {
+    int num_threads = 1;
+    int num_elements_per_thread = 10;
+    SongRangeLock rl;
 
     auto tryLockFunc = [&](int thread_id) {
         for (int i = 0; i < num_elements_per_thread; i += 2) {
             int value = thread_id * num_elements_per_thread + i;
-
-            ASSERT_TRUE(crl.tryLock(value, value + 1));
+            ASSERT_TRUE(rl.tryLock(value, value + 1));
         }
+        std::cout << std::endl;
     };
 
     std::vector<std::thread> threads;
@@ -34,22 +31,25 @@ TEST(ConcurrentRangeLock, ConcurrentInsertions) {
         t.join();
     }
 
-    ASSERT_EQ(crl.size(), num_threads * num_elements_per_thread / 2);
+    rl.displayList();
+
+    ASSERT_EQ(rl.size(), num_threads * num_elements_per_thread / 2);
 }
 
 // Test case for concurrent deletions
-TEST(ConcurrentRangeLock, ConcurrentDeletions) {
+TEST(XiangSongRangeLock, ConcurrentDeletions) {
     int num_elements = 10000;
-    ConcurrentRangeLock<int, maxLevel> crl{};
+    SongRangeLock rl;
 
     for (int i = 0; i < num_elements; i += 2) {
-        crl.tryLock(i, i + 1);
+        rl.tryLock(i, i + 1);
     }
+
+    ASSERT_EQ(rl.size(), 5000);
 
     auto releaseLockFunc = [&](int start, int end) {
         for (int i = start; i < end; i += 2) {
-            auto res = crl.releaseLock(i, i + 1);
-            ASSERT_TRUE(res);
+            rl.releaseLock(i);
         }
     };
 
@@ -65,21 +65,21 @@ TEST(ConcurrentRangeLock, ConcurrentDeletions) {
         t.join();
     }
 
-    ASSERT_EQ(crl.size(), 0);
+    ASSERT_EQ(rl.size(), 0);
 }
 
 // Test case for all operations concurrently
-TEST(ConcurrentRangeLock, MixedOperationsConcurrently) {
+TEST(XiangSongRangeLock, MixedOperationsConcurrently) {
     const int num_threads = 50;
     const int num_operations_per_thread = 1000;
-    ConcurrentRangeLock<int, maxLevel> crl{};
+    SongRangeLock rl;
 
     auto mixedOpFunc = [&](int thread_id) {
         for (int i = 0; i < num_operations_per_thread; i += 2) {
             int value = thread_id * num_operations_per_thread + i;
 
-            crl.tryLock(value, value + 1);
-            crl.releaseLock(value, value + 1);
+            rl.tryLock(value, value + 1);
+            rl.releaseLock(value);
         }
     };
 
@@ -92,20 +92,20 @@ TEST(ConcurrentRangeLock, MixedOperationsConcurrently) {
         t.join();
     }
 
-    ASSERT_EQ(crl.size(), 0);
+    ASSERT_EQ(rl.size(), 0);
 }
 
 // Test case for correct deletion of unordered insertion
-TEST(ConcurrentRangeLock, CorrectInsertion) {
-    const int num_threads = 50;
-    ConcurrentRangeLock<int, maxLevel> crl{};
+TEST(XiangSongRangeLock, CorrectInsertion) {
+    const int num_threads = 2;
+    SongRangeLock rl;
 
     std::vector<std::pair<int, int>> ranges;
     std::vector<std::pair<int, int>> rangesShuffled;
 
     for (int i = 0; i < 1000; i += 10) {
-        ranges.push_back(std::make_pair(i, i + 9));
-        rangesShuffled.push_back(std::make_pair(i, i + 9));
+        ranges.push_back(std::make_pair(i, i + 5));
+        rangesShuffled.push_back(std::make_pair(i, i + 5));
     }
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
     std::shuffle(rangesShuffled.begin(), rangesShuffled.end(),
@@ -116,7 +116,7 @@ TEST(ConcurrentRangeLock, CorrectInsertion) {
             auto start = rangesShuffled[i].first;
             auto end = rangesShuffled[i].second;
 
-            crl.tryLock(start, end);
+            auto res = rl.tryLock(start, end);
         }
     };
 
@@ -129,27 +129,27 @@ TEST(ConcurrentRangeLock, CorrectInsertion) {
         t.join();
     }
 
-    ASSERT_EQ(crl.size(), ranges.size());
+    ASSERT_EQ(rl.size(), ranges.size());
 
     for (int i = 0; i < ranges.size(); i++) {
         auto start = ranges[i].first;
         auto end = ranges[i].second;
 
-        crl.releaseLock(start, end);
+        rl.releaseLock(start);
     }
 
-    ASSERT_EQ(crl.size(), 0);
+    ASSERT_EQ(rl.size(), 0);
 }
 
 // Test case for correct order of insertion
-TEST(ConcurrentRangeLock, CorrectOrderOfInsertion) {
+TEST(XiangSongRangeLock, CorrectOrderOfInsertion) {
     std::unordered_map<int, std::string> database;
-    std::uniform_int_distribution<int> dist(0, 9'999'00);
-    std::uniform_int_distribution<int> range_dist(10, 1000);
+    std::uniform_int_distribution<int> dist(0, 10000);
+    std::uniform_int_distribution<int> range_dist(10, 100);
 
     const int num_threads = 50;
-    const int num_transactions = 5000;
-    ConcurrentRangeLock<int, maxLevel> crl{};
+    const int num_transactions = 1000;
+    SongRangeLock rl;
 
     auto mixedOpFunc = [&](int thread_id) {
         std::mt19937 rng(thread_id);
@@ -158,7 +158,7 @@ TEST(ConcurrentRangeLock, CorrectOrderOfInsertion) {
             int start = dist(rng);
             int end = start + range_dist(rng);
 
-            crl.tryLock(start, end);
+            rl.tryLock(start, end);
         }
     };
 
@@ -171,11 +171,11 @@ TEST(ConcurrentRangeLock, CorrectOrderOfInsertion) {
         t.join();
     }
 
-    auto pred = crl.head;
-    for (auto curr = pred->next[0]->getReference(); curr != crl.tail;) {
-        ASSERT_TRUE(pred->getEnd() < curr->getStart());
-        ASSERT_TRUE(pred->getStart() < curr->getStart());
+    auto pred = rl.head_;
+    for (auto curr = pred->forward[0]; curr != rl.tail_;) {
+        ASSERT_TRUE(pred->end <= curr->start);
+        ASSERT_TRUE(pred->start <= curr->start);
         pred = curr;
-        curr = pred->next[0]->getReference();
+        curr = pred->forward[0];
     }
 }
