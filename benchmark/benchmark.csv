@@ -1,0 +1,8 @@
+2024-08-08T08:12:56+02:00
+Running ./gtest
+Run on (8 X 2400 MHz CPU s)
+CPU Caches:
+  L1 Data 64 KiB
+  L1 Instruction 128 KiB
+  L2 Unified 4096 KiB (x8)
+Load Average: 1.22, 1.84, 1.87

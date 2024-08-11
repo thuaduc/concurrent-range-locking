@@ -45,15 +45,15 @@ class OptimisticMutex {
 constexpr uint64_t CacheLineSize = 64;
 
 template <typename T>
-struct alignas(CacheLineSize) Node {
-    Node(T start, T end, int level);
-    ~Node();
+struct alignas(CacheLineSize) Node_V1 {
+    Node_V1(T start, T end, int level);
+    ~Node_V1();
 
     int getTopLevel() const;
     T getStart() const;
     T getEnd() const;
 
-    Node **next;
+    Node_V1 **next;
     bool marked = false;
     bool fullyLinked = false;
 
@@ -69,37 +69,37 @@ struct alignas(CacheLineSize) Node {
 };
 
 template <typename T>
-Node<T>::Node(T start, T end, int level)
+Node_V1<T>::Node_V1(T start, T end, int level)
     : start{start}, end{end}, topLevel{level} {
-    next = new Node<T> *[level + 1];
+    next = new Node_V1<T> *[level + 1];
 }
 
 template <typename T>
-Node<T>::~Node() {
+Node_V1<T>::~Node_V1() {
     // delete next;
 }
 
 template <typename T>
-void Node<T>::lock() {
+void Node_V1<T>::lock() {
     mutex.lock();
 }
 
 template <typename T>
-void Node<T>::unlock() {
+void Node_V1<T>::unlock() {
     mutex.unlock();
 }
 
 template <typename T>
-int Node<T>::getTopLevel() const {
+int Node_V1<T>::getTopLevel() const {
     return topLevel;
 }
 
 template <typename T>
-T Node<T>::getStart() const {
+T Node_V1<T>::getStart() const {
     return start;
 }
 
 template <typename T>
-T Node<T>::getEnd() const {
+T Node_V1<T>::getEnd() const {
     return end;
 }
