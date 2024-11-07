@@ -15,19 +15,25 @@ struct LNode {
 // List structure for range locks
 struct ListRL {
     std::atomic<LNode *> head;
-    std::atomic<size_t> elementsCount{0};
+    uint64_t size_{0};
 
     ListRL() : head(nullptr) {}
 
-    size_t size() { return elementsCount.load(); }
+    uint64_t size() { return size_ + sizeof(*head); }
 };
 
 // Range lock structure
 struct RangeLock {
-    LNode *node;
+    LNode* node;
 
-    RangeLock(LNode *n) : node(n) {}
+    RangeLock(LNode* n) : node(n) {}
+
+    size_t getRealSize() const;
 };
+
+size_t RangeLock::getRealSize() const {
+    return sizeof(*this) + sizeof(*this->node);
+}
 
 // Check if node is marked
 bool isMarked(LNode *node) {
@@ -73,7 +79,6 @@ bool InsertNode(ListRL *listrl, LNode *lock) {
                 } else {  // lock precedes cur or reached end of list
                     lock->next.store(cur);
                     if (std::atomic_compare_exchange_strong(prev, &cur, lock)) {
-                        listrl->elementsCount.fetch_add(1, std::memory_order_relaxed);
                         return true;  // success - the range is acquired now
                     }
                     cur =
@@ -90,14 +95,13 @@ void DeleteNode(ListRL *listrl, LNode *lock) {
     LNode *markedNext =
             reinterpret_cast<LNode *>(reinterpret_cast<uintptr_t>(currentNext) | 1);
     lock->next.store(markedNext);
-    listrl->elementsCount.fetch_sub(1, std::memory_order_relaxed);
-
 }
 
 // Acquire a range lock
 RangeLock *MutexRangeAcquire(ListRL *listrl, uint64_t start, uint64_t end) {
     RangeLock *rl = new RangeLock(new LNode(start, end));
     if (InsertNode(listrl, rl->node)) {
+        listrl->size_ += rl->getRealSize();
         return rl;
     }
     delete rl;

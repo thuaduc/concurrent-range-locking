@@ -21,6 +21,8 @@ class Node {
     T getStart() const;
     T getEnd() const;
 
+    size_t getRealSize() const;
+
     AtomicMarkableReference<Node<T>>** next;
 };
 
@@ -70,4 +72,9 @@ T Node<T>::getStart() const {
 template <typename T>
 T Node<T>::getEnd() const {
     return end;
+}
+
+template <typename T>
+size_t Node<T>::getRealSize() const {
+    return sizeof(*this) + (topLevel+1)*sizeof(*next[0]);
 }

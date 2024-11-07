@@ -19,10 +19,8 @@
 #include "../src/v3/range_lock.cpp"
 #include "/usr/local/Cellar/google-benchmark/1.8.5/include/benchmark/benchmark.h"
 
-constexpr int minThreads = 1;
-constexpr int maxThreads = 16;
-constexpr int numOfRanges = 50000;
-constexpr int size = 4;
+constexpr int numOfRanges = 10000;
+constexpr int size = 1024;
 constexpr size_t sharedMemorySize = numOfRanges * (size + 1);
 
 uint8_t* createSharedMemory() {
@@ -59,7 +57,7 @@ std::vector<std::pair<int, int>> createNonOverlappingRanges() {
 
 void runScalabilityV0(benchmark::State& state) {
     int numThreads = state.range(0);
-    ConcurrentRangeLock<uint64_t, 6> crl{};
+    ConcurrentRangeLock<uint64_t, 10> crl{};
     std::vector<std::thread> threads;
     threads.reserve(numThreads);
 
@@ -101,48 +99,48 @@ void runScalabilityV0(benchmark::State& state) {
     destroySharedMemory(sharedMemory);
 }
 
-void runScalabilityV1(benchmark::State& state) {
-    int numThreads = state.range(0);
-    ConcurrentRangeLock_V1<uint64_t, 6> crl{};
-    std::vector<std::thread> threads;
-    threads.reserve(numThreads);
+// void runScalabilityV1(benchmark::State& state) {
+//     int numThreads = state.range(0);
+//     ConcurrentRangeLock_V1<uint64_t, 6> crl{};
+//     std::vector<std::thread> threads;
+//     threads.reserve(numThreads);
 
-    uint8_t* sharedMemory = createSharedMemory();
-    auto ranges = createNonOverlappingRanges();
-    auto rangePerThread = ranges.size() / numThreads;
+//     uint8_t* sharedMemory = createSharedMemory();
+//     auto ranges = createNonOverlappingRanges();
+//     auto rangePerThread = ranges.size() / numThreads;
 
-    for (auto _ : state) {
-        threads.clear();
+//     for (auto _ : state) {
+//         threads.clear();
 
-        auto start = std::chrono::steady_clock::now();
-        for (int i = 0; i < numThreads; i++) {
-            threads.emplace_back([&, i]() {
-                auto startIdx = i * rangePerThread;
-                auto endIdx = (i == numThreads - 1) ? ranges.size()
-                                                    : startIdx + rangePerThread;
+//         auto start = std::chrono::steady_clock::now();
+//         for (int i = 0; i < numThreads; i++) {
+//             threads.emplace_back([&, i]() {
+//                 auto startIdx = i * rangePerThread;
+//                 auto endIdx = (i == numThreads - 1) ? ranges.size()
+//                                                     : startIdx + rangePerThread;
 
-                for (auto j = startIdx; j < endIdx; ++j) {
-                    crl.tryLock(ranges[j].first, ranges[j].second);
-                    memset(sharedMemory + ranges[j].first, 1,
-                           ranges[j].second - ranges[j].first);
-                }
-                for (auto j = startIdx; j < endIdx; ++j) {
-                    crl.releaseLock(ranges[j].first, ranges[j].second);
-                }
-            });
-        }
+//                 for (auto j = startIdx; j < endIdx; ++j) {
+//                     crl.tryLock(ranges[j].first, ranges[j].second);
+//                     // memset(sharedMemory + ranges[j].first, 1,
+//                     //        ranges[j].second - ranges[j].first);
+//                 }
+//                 for (auto j = startIdx; j < endIdx; ++j) {
+//                     crl.releaseLock(ranges[j].first, ranges[j].second);
+//                 }
+//             });
+//         }
 
-        for (auto& thread : threads) {
-            thread.join();
-        }
-        auto end = std::chrono::steady_clock::now();
+//         for (auto& thread : threads) {
+//             thread.join();
+//         }
+//         auto end = std::chrono::steady_clock::now();
 
-        std::chrono::duration<double> duration = end - start;
-        state.SetIterationTime(duration.count());
-    }
+//         std::chrono::duration<double> duration = end - start;
+//         state.SetIterationTime(duration.count());
+//     }
 
-    destroySharedMemory(sharedMemory);
-}
+//     destroySharedMemory(sharedMemory);
+// }
 
 void runScalabilityV2(benchmark::State& state) {
     int numThreads = state.range(0);
@@ -236,28 +234,26 @@ void runScalabilityV3(benchmark::State& state) {
     destroySharedMemory(sharedMemory);
 }
 
-BENCHMARK(runScalabilityV0)
-    ->RangeMultiplier(2)
-    ->Range(minThreads, maxThreads)
-    ->UseManualTime()
-    ->Iterations(5);
-
-BENCHMARK(runScalabilityV1)
-    ->RangeMultiplier(2)
-    ->Range(minThreads, maxThreads)
-    ->UseManualTime()
-    ->Iterations(5);
-
-BENCHMARK(runScalabilityV2)
-    ->RangeMultiplier(2)
-    ->Range(minThreads, maxThreads)
-    ->UseManualTime()
-    ->Iterations(5);
-
 BENCHMARK(runScalabilityV3)
-    ->RangeMultiplier(2)
-    ->Range(minThreads, maxThreads)
+    ->DenseRange(1, 32, 2)
     ->UseManualTime()
-    ->Iterations(5);
+    ->Iterations(10);
+
+
+// BENCHMARK(runScalabilityV1)
+//     ->RangeMultiplier(2)
+//     ->Range(minThreads, maxThreads)
+//     ->UseManualTime()
+//     ->Iterations(5);
+
+// BENCHMARK(runScalabilityV2)
+//     ->Range(1, 32)
+//     ->UseManualTime()
+//     ->Iterations(5);
+
+// BENCHMARK(runScalabilityV3)
+//     ->Range(1, 32)
+//     ->UseManualTime()
+//     ->Iterations(5);
 
 BENCHMARK_MAIN();

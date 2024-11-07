@@ -1,0 +1,25 @@
+2024-08-25T19:18:23+02:00
+Running ./gtest
+Run on (8 X 2400 MHz CPU s)
+CPU Caches:
+  L1 Data 64 KiB
+  L1 Instruction 128 KiB
+  L2 Unified 4096 KiB (x8)
+Load Average: 2.22, 6.30, 7.18
+name,iterations,real_time,cpu_time,time_unit,bytes_per_second,items_per_second,label,error_occurred,error_message
+"runScalabilityV0/1/iterations:10/manual_time",10,3.31263e+08,54300,ns,,,,,
+"runScalabilityV0/3/iterations:10/manual_time",10,1.19741e+08,117600,ns,,,,,
+"runScalabilityV0/5/iterations:10/manual_time",10,8.65726e+07,174400,ns,,,,,
+"runScalabilityV0/7/iterations:10/manual_time",10,7.69423e+07,238500,ns,,,,,
+"runScalabilityV0/9/iterations:10/manual_time",10,7.04372e+07,336200,ns,,,,,
+"runScalabilityV0/11/iterations:10/manual_time",10,6.7693e+07,362800,ns,,,,,
+"runScalabilityV0/13/iterations:10/manual_time",10,6.82795e+07,427200,ns,,,,,
+"runScalabilityV0/15/iterations:10/manual_time",10,6.52751e+07,559300,ns,,,,,
+"runScalabilityV0/17/iterations:10/manual_time",10,6.5324e+07,584800,ns,,,,,
+"runScalabilityV0/19/iterations:10/manual_time",10,6.11757e+07,651000,ns,,,,,
+"runScalabilityV0/21/iterations:10/manual_time",10,6.18709e+07,691200,ns,,,,,
+"runScalabilityV0/23/iterations:10/manual_time",10,6.32882e+07,812900,ns,,,,,
+"runScalabilityV0/25/iterations:10/manual_time",10,5.80399e+07,821000,ns,,,,,
+"runScalabilityV0/27/iterations:10/manual_time",10,5.76654e+07,876500,ns,,,,,
+"runScalabilityV0/29/iterations:10/manual_time",10,5.61646e+07,976700,ns,,,,,
+"runScalabilityV0/31/iterations:10/manual_time",10,5.53203e+07,974400,ns,,,,,

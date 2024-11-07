@@ -35,7 +35,7 @@ GTEST = $(addprefix -I, $(GTEST_DIR))
 
 all: test
 
-v0: $(BINDIR_4)v.a
+v0: $(BINDIR_0)v.a $(BINDIR_2)v.a
 	$(CXX) -o $@ $(APPDIR)v0.cpp $^ -v
 
 benchmark: $(BINDIR_0)v.a $(BINDIR_1)v.a $(BINDIR_2)v.a
@@ -55,10 +55,10 @@ test_main: $(BINDIR_2)v.a
 	./test_v0
 
 test: $(BINDIR_3)v.a
-#	$(CXX) $(GTEST) -o test_v0 $(TESTDIR_0)unittest.cpp $^ $(LDFLAGS)
+	$(CXX) $(GTEST) -o test_v0 $(TESTDIR_0)unittest.cpp $^ $(LDFLAGS)
 #	$(CXX) $(GTEST) -o test_v1 $(TESTDIR_1)unittest.cpp $^ $(LDFLAGS)
 #	$(CXX) $(GTEST) -o test_v2 $(TESTDIR_2)unittest.cpp $^ $(LDFLAGS)
-	$(CXX) $(GTEST) -o test_v3 $(TESTDIR_3)unittest.cpp $^ $(LDFLAGS)
+#	$(CXX) $(GTEST) -o test_v3 $(TESTDIR_3)unittest.cpp $^ $(LDFLAGS)
 #	./test_v0
 #	./test_v1
 #	./test_v2

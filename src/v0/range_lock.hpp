@@ -18,6 +18,7 @@ template<typename T, unsigned maxLevel>
 class ConcurrentRangeLock {
 private:
     std::atomic <size_t> elementsCount{0};
+    uint64_t size_;
 
     int randomLevel();
 
@@ -37,7 +38,7 @@ public:
 
     bool releaseLock(T start, T end);
 
-    size_t size();
+    uint64_t size();
 
     void displayList();
 };
@@ -57,8 +58,8 @@ ConcurrentRangeLock<T, maxLevel>::ConcurrentRangeLock() {
 }
 
 template<typename T, unsigned maxLevel>
-size_t ConcurrentRangeLock<T, maxLevel>::size() {
-    return elementsCount.load();
+uint64_t ConcurrentRangeLock<T, maxLevel>::size() {
+    return size_ + head->getRealSize() + tail->getRealSize();
 }
 
 template<typename T, unsigned maxLevel>
@@ -231,6 +232,7 @@ bool ConcurrentRangeLock<T, maxLevel>::tryLock(T start, T end) {
             }
 
             elementsCount.fetch_add(1, std::memory_order_relaxed);
+            size_ += newNode->getRealSize();
             return true;
         }
     }
